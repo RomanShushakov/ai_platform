@@ -1,0 +1,18 @@
+[package]
+name = "host"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+llm-client = { path = "../llm_client" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shared-types = { path = "../shared_types" }
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
