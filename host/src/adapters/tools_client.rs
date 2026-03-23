@@ -1,3 +1,4 @@
+use std::time::Duration;
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde_json::Value;
@@ -11,8 +12,13 @@ pub struct ToolsClient {
 
 impl ToolsClient {
     pub fn new(base_url: impl Into<String>) -> Self {
+        let http = Client::builder()
+            .timeout(Duration::from_secs(10))
+            .build()
+            .expect("failed to build reqwest client");
+
         Self {
-            http: Client::new(),
+            http,
             base_url: base_url.into(),
         }
     }
@@ -20,7 +26,8 @@ impl ToolsClient {
     pub async fn list_tools(&self) -> Result<Vec<ToolDefinition>> {
         let url = format!("{}/tools", self.base_url);
 
-        let resp = self.http
+        let resp = self
+            .http
             .get(&url)
             .send()
             .await
@@ -41,16 +48,13 @@ impl ToolsClient {
         Ok(tools)
     }
 
-    pub async fn call_tool(
-        &self,
-        name: String,
-        arguments: Value,
-    ) -> Result<ToolResult> {
+    pub async fn call_tool(&self, name: String, arguments: Value) -> Result<ToolResult> {
         let url = format!("{}/tools/call", self.base_url);
 
         let request = ToolCallRequest { name, arguments };
 
-        let resp = self.http
+        let resp = self
+            .http
             .post(&url)
             .json(&request)
             .send()

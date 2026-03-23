@@ -5,8 +5,32 @@ curl http://localhost:3001/health
 curl http://localhost:3001/tools
 
 
-In first terminal:
+Terminal 1:
 cargo run -p tools-server
 
-In second terminal:
+Terminal 2:
 cargo run -p host
+
+
+docker run -d -p 11434:11434 ollama/ollama:0.18.2
+docker exec -it <container_id> ollama pull llama3
+
+cargo run -p host
+
+
+Terminal 1:
+cargo run -p tools-server
+
+Terminal 2:
+cargo run -p host
+
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the weather in Berlin?"}'
+
+
+docker compose up --build
+
+docker exec -it ai_platform_ollama ollama pull llama3
+
+docker exec -it ai_platform_ollama ollama list

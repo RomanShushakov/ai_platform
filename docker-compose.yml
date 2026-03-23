@@ -1,0 +1,44 @@
+services:
+  ollama:
+    image: ollama/ollama:0.18.2
+    container_name: ai_platform_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  tools-server:
+    build:
+      context: .
+      dockerfile: tools_server/dockerfile
+    command: ["/usr/local/bin/tools-server"]
+    environment:
+      RUST_LOG: tools_server=debug,tower_http=debug
+    ports:
+      - "3001:3001"
+
+  host:
+    build:
+      context: .
+      dockerfile: host/dockerfile
+    command: ["/usr/local/bin/host"]
+    depends_on:
+      - tools-server
+      - ollama
+    environment:
+      HOST_PORT: "3000"
+      TOOLS_BASE_URL: "http://tools-server:3001"
+      OLLAMA_BASE_URL: "http://ollama:11434"
+      OLLAMA_MODEL: "llama3"
+      MAX_LLM_STEPS: "4"
+      RUST_LOG: host=debug,llm_client=debug,tower_http=debug
+    ports:
+      - "3000:3000"
+
+volumes:
+  ollama_data:

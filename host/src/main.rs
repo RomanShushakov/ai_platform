@@ -1,22 +1,51 @@
 mod adapters;
+mod api;
+mod config;
+mod domain;
+
+use std::{net::SocketAddr, sync::Arc};
 
 use adapters::tools_client::ToolsClient;
+use api::AppState;
+use axum::{Router, routing::{get, post}};
+use llm_client::OllamaClient;
+use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
+use tracing::info;
+
+use crate::config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let client = ToolsClient::new("http://localhost:3001");
-
-    let tools = client.list_tools().await?;
-    println!("TOOLS: {:#?}", tools);
-
-    let result = client
-        .call_tool(
-            "get_weather".to_string(),
-            serde_json::json!({ "city": "Berlin" }),
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            std::env::var("RUST_LOG")
+                .unwrap_or_else(|_| "host=debug,llm_client=debug,tower_http=debug".to_string()),
         )
-        .await?;
+        .init();
 
-    println!("TOOL RESULT: {:#?}", result);
+    let config = Config::from_env();
+
+    let state = AppState {
+        tools_client: ToolsClient::new(config.tools_base_url.clone()),
+        llm_client: Arc::new(OllamaClient::new(
+            config.ollama_base_url.clone(),
+            config.ollama_model.clone(),
+        )),
+        config: config.clone(),
+    };
+
+    let app = Router::new()
+        .route("/health", get(api::health))
+        .route("/chat", post(api::chat))
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.host_port));
+    info!("host listening on {}", addr);
+
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
 
     Ok(())
 }
