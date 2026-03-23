@@ -3,3 +3,10 @@ cargo run -p tools-server
 curl http://localhost:3001/health
 
 curl http://localhost:3001/tools
+
+
+In first terminal:
+cargo run -p tools-server
+
+In second terminal:
+cargo run -p host
