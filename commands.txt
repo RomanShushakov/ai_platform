@@ -42,3 +42,18 @@ curl -X POST http://localhost:3000/chat \
 curl -X POST http://localhost:3000/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"How do I request vacation?"}'
+
+
+docker compose up --build
+
+or
+
+TOOL_PROVIDER=http docker compose --profile http-tools up --build
+
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the weather in Berlin?"}'
+
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'

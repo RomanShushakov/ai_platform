@@ -12,33 +12,36 @@ services:
       timeout: 5s
       retries: 10
 
-  tools-server:
-    build:
-      context: .
-      dockerfile: tools_server/dockerfile
-    command: ["/usr/local/bin/tools-server"]
-    environment:
-      RUST_LOG: tools_server=debug,tower_http=debug
-    ports:
-      - "3001:3001"
-
   host:
     build:
       context: .
       dockerfile: host/dockerfile
-    command: ["/usr/local/bin/host"]
+    container_name: ai_platform_host
     depends_on:
-      - tools-server
       - ollama
     environment:
       HOST_PORT: "3000"
-      TOOLS_BASE_URL: "http://tools-server:3001"
-      OLLAMA_BASE_URL: "http://ollama:11434"
-      OLLAMA_MODEL: "llama3"
-      MAX_LLM_STEPS: "4"
-      RUST_LOG: host=debug,llm_client=debug,tower_http=debug
+      TOOL_PROVIDER: "${TOOL_PROVIDER:-mcp}"
+      TOOLS_BASE_URL: "${TOOLS_BASE_URL:-http://tools-server:3001}"
+      MCP_TOOLS_BINARY: "${MCP_TOOLS_BINARY:-/usr/local/bin/tools-server}"
+      OLLAMA_BASE_URL: "${OLLAMA_BASE_URL:-http://ollama:11434}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3}"
+      MAX_LLM_STEPS: "${MAX_LLM_STEPS:-4}"
+      RUST_LOG: "${RUST_LOG:-host=debug,llm_client=debug,tower_http=debug}"
     ports:
       - "3000:3000"
+
+  tools-server:
+    profiles: ["http-tools"]
+    build:
+      context: .
+      dockerfile: tools_server/dockerfile
+    container_name: ai_platform_tools_server
+    environment:
+      TOOLS_TRANSPORT: "http"
+      RUST_LOG: "${TOOLS_RUST_LOG:-tools_server=debug,tower_http=debug}"
+    ports:
+      - "3001:3001"
 
 volumes:
   ollama_data:

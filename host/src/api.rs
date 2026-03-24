@@ -41,7 +41,7 @@ pub async fn chat(
     {
         Ok(response) => Ok(Json(response)),
         Err(err) => {
-            error!(request_id = %request_id, error = %err, "chat request failed");
+            error!(request_id = %request_id, error = ?err, "chat request failed");
 
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,

@@ -2,10 +2,14 @@ FROM rust:1.94-bookworm AS builder
 WORKDIR /app
 
 COPY . .
+RUN cargo build -p tools-server --release
+
 RUN cargo build -p host --release
 
 FROM debian:bookworm
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/tools-server /usr/local/bin/tools-server
 
 COPY --from=builder /app/target/release/host /usr/local/bin/host
 

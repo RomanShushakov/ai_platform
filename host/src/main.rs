@@ -5,7 +5,10 @@ mod domain;
 
 use std::{net::SocketAddr, sync::Arc};
 
-use adapters::{http_tool_provider::HttpToolProvider, tools_client::ToolsClient};
+use adapters::{
+    http_tool_provider::HttpToolProvider, mcp_tool_provider::McpToolProvider,
+    tools_client::ToolsClient,
+};
 use api::AppState;
 use axum::{
     Router,
@@ -16,7 +19,7 @@ use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-use crate::config::Config;
+use crate::{config::Config, domain::tool_provider::ToolProvider};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,8 +32,19 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env();
 
-    let tools_client = ToolsClient::new(config.tools_base_url.clone());
-    let tool_provider = Arc::new(HttpToolProvider::new(tools_client));
+    let tool_provider: Arc<dyn ToolProvider> = match config.tool_provider.as_str() {
+        "http" => {
+            info!(base_url = %config.tools_base_url, "using HTTP tool provider");
+            Arc::new(HttpToolProvider::new(ToolsClient::new(
+                config.tools_base_url.clone(),
+            )))
+        }
+        "mcp" => {
+            info!(binary = %config.mcp_tools_binary, "using MCP tool provider");
+            Arc::new(McpToolProvider::new(&config.mcp_tools_binary).await?)
+        }
+        other => anyhow::bail!("unsupported TOOL_PROVIDER value: {}", other),
+    };
 
     let state = AppState {
         tool_provider,

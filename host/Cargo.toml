@@ -17,3 +17,5 @@ tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
+
+rmcp = { version = "1.2.0", features = ["client", "transport-child-process"] }

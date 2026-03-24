@@ -13,3 +13,5 @@ tokio.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+
+rmcp = { version = "1.2.0", features = ["server", "transport-io", "schemars"] }

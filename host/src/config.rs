@@ -1,7 +1,9 @@
 #[derive(Debug, Clone)]
 pub struct Config {
     pub host_port: u16,
+    pub tool_provider: String,
     pub tools_base_url: String,
+    pub mcp_tools_binary: String,
     pub ollama_base_url: String,
     pub ollama_model: String,
     pub max_llm_steps: usize,
@@ -14,12 +16,20 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(3000),
+
+            tool_provider: std::env::var("TOOL_PROVIDER").unwrap_or_else(|_| "mcp".to_string()),
+
             tools_base_url: std::env::var("TOOLS_BASE_URL")
                 .unwrap_or_else(|_| "http://localhost:3001".to_string()),
+
+            mcp_tools_binary: std::env::var("MCP_TOOLS_BINARY")
+                .unwrap_or_else(|_| "target/debug/tools-server".to_string()),
+
             ollama_base_url: std::env::var("OLLAMA_BASE_URL")
                 .unwrap_or_else(|_| "http://localhost:11434".to_string()),
-            ollama_model: std::env::var("OLLAMA_MODEL")
-                .unwrap_or_else(|_| "llama3".to_string()),
+
+            ollama_model: std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "llama3".to_string()),
+
             max_llm_steps: std::env::var("MAX_LLM_STEPS")
                 .ok()
                 .and_then(|v| v.parse().ok())

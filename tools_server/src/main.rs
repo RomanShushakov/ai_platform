@@ -1,36 +1,23 @@
 mod api;
+mod mcp_server;
 mod tools;
-
-use std::net::SocketAddr;
-
-use axum::{
-    Router,
-    routing::{get, post},
-};
-use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
-use tracing::info;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let transport = std::env::var("TOOLS_TRANSPORT").unwrap_or_else(|_| "http".to_string());
+
+    eprintln!("TOOLS_SERVER MODE = {}", transport);
+
     tracing_subscriber::fmt()
         .with_env_filter(
             std::env::var("RUST_LOG")
                 .unwrap_or_else(|_| "tools_server=debug,tower_http=debug".to_string()),
         )
+        .with_writer(std::io::stderr)
         .init();
 
-    let app = Router::new()
-        .route("/health", get(api::health))
-        .route("/tools", get(api::list_tools))
-        .route("/tools/call", post(api::call_tool))
-        .layer(TraceLayer::new_for_http());
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
-    info!("tools_server listening on {}", addr);
-
-    let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
-
-    Ok(())
+    match transport.as_str() {
+        "mcp-stdio" => mcp_server::run_mcp_stdio().await,
+        _ => api::run_http_server().await,
+    }
 }
