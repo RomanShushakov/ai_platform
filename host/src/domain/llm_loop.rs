@@ -4,18 +4,18 @@ use shared_types::{LlmMessage, LlmOutput, UiChatResponse};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::adapters::tools_client::ToolsClient;
+use crate::domain::tool_provider::ToolProvider;
 
 pub async fn run_chat_loop(
     request_id: Uuid,
     user_message: String,
     llm_client: &dyn LlmClient,
-    tools_client: &ToolsClient,
+    tool_provider: &dyn ToolProvider,
     max_steps: usize,
 ) -> Result<UiChatResponse> {
     let mut steps = Vec::new();
 
-    let tools = tools_client.list_tools().await?;
+    let tools = tool_provider.list_tools().await?;
     steps.push(format!("Loaded {} tool(s)", tools.len()));
 
     let mut messages = vec![LlmMessage::User {
@@ -44,7 +44,7 @@ pub async fn run_chat_loop(
             LlmOutput::ToolCall { name, arguments } => {
                 steps.push(format!("LLM requested tool '{}'", name));
 
-                let tool_result = tools_client
+                let tool_result = tool_provider
                     .call_tool(name.clone(), arguments)
                     .await
                     .with_context(|| format!("tool execution failed for '{}'", name))?;

@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+async-trait.workspace = true
 axum.workspace = true
 llm-client = { path = "../llm_client" }
 reqwest.workspace = true

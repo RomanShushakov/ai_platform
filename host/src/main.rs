@@ -5,9 +5,12 @@ mod domain;
 
 use std::{net::SocketAddr, sync::Arc};
 
-use adapters::tools_client::ToolsClient;
+use adapters::{http_tool_provider::HttpToolProvider, tools_client::ToolsClient};
 use api::AppState;
-use axum::{Router, routing::{get, post}};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use llm_client::OllamaClient;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
@@ -26,8 +29,11 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::from_env();
 
+    let tools_client = ToolsClient::new(config.tools_base_url.clone());
+    let tool_provider = Arc::new(HttpToolProvider::new(tools_client));
+
     let state = AppState {
-        tools_client: ToolsClient::new(config.tools_base_url.clone()),
+        tool_provider,
         llm_client: Arc::new(OllamaClient::new(
             config.ollama_base_url.clone(),
             config.ollama_model.clone(),

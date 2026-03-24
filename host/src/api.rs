@@ -6,12 +6,15 @@ use shared_types::{UiChatRequest, UiChatResponse};
 use tracing::error;
 use uuid::Uuid;
 
-use crate::{adapters::tools_client::ToolsClient, config::Config, domain::llm_loop::run_chat_loop};
+use crate::{
+    config::Config,
+    domain::{llm_loop::run_chat_loop, tool_provider::ToolProvider},
+};
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
-    pub tools_client: ToolsClient,
+    pub tool_provider: Arc<dyn ToolProvider>,
     pub llm_client: Arc<OllamaClient>,
 }
 
@@ -31,7 +34,7 @@ pub async fn chat(
         request_id,
         request.message,
         state.llm_client.as_ref(),
-        &state.tools_client,
+        state.tool_provider.as_ref(),
         state.config.max_llm_steps,
     )
     .await
