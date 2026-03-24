@@ -34,3 +34,11 @@ docker compose up --build
 docker exec -it ai_platform_ollama ollama pull llama3
 
 docker exec -it ai_platform_ollama ollama list
+
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the weather in Berlin?"}'
+
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'
