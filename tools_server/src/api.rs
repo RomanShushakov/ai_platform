@@ -11,23 +11,7 @@ use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-use crate::tools;
-
-pub async fn run_http_server() -> anyhow::Result<()> {
-    let app = Router::new()
-        .route("/health", get(health))
-        .route("/tools", get(list_tools))
-        .route("/tools/call", post(call_tool))
-        .layer(TraceLayer::new_for_http());
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
-    info!("tools_server listening on {}", addr);
-
-    let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
-
-    Ok(())
-}
+use crate::{config::Config, tools};
 
 pub async fn health() -> Json<serde_json::Value> {
     Json(json!({
@@ -51,4 +35,20 @@ pub async fn call_tool(
             })),
         )),
     }
+}
+
+pub async fn run_http_server(config: Config) -> anyhow::Result<()> {
+    let app = Router::new()
+        .route("/health", get(health))
+        .route("/tools", get(list_tools))
+        .route("/tools/call", post(call_tool))
+        .layer(TraceLayer::new_for_http());
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.host_port));
+    info!("tools_server listening on {}", addr);
+
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

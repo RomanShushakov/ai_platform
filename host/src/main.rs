@@ -3,20 +3,14 @@ mod api;
 mod config;
 mod domain;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::sync::Arc;
 
 use adapters::{
     http_tool_provider::HttpToolProvider, mcp_tool_provider::McpToolProvider,
     tools_client::ToolsClient,
 };
 use api::AppState;
-use axum::{
-    Router,
-    routing::{get, post},
-};
 use llm_client::OllamaClient;
-use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
 use tracing::info;
 
 use crate::{config::Config, domain::tool_provider::ToolProvider};
@@ -46,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
         other => anyhow::bail!("unsupported TOOL_PROVIDER value: {}", other),
     };
 
-    let state = AppState {
+    let state: AppState = AppState {
         tool_provider,
         llm_client: Arc::new(OllamaClient::new(
             config.ollama_base_url.clone(),
@@ -55,17 +49,5 @@ async fn main() -> anyhow::Result<()> {
         config: config.clone(),
     };
 
-    let app = Router::new()
-        .route("/health", get(api::health))
-        .route("/chat", post(api::chat))
-        .layer(TraceLayer::new_for_http())
-        .with_state(state);
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.host_port));
-    info!("host listening on {}", addr);
-
-    let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
-
-    Ok(())
+    api::run_http_server(state, config).await
 }

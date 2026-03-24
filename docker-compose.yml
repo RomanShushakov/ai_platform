@@ -38,6 +38,7 @@ services:
       dockerfile: tools_server/dockerfile
     container_name: ai_platform_tools_server
     environment:
+      HOST_PORT: "3001"
       TOOLS_TRANSPORT: "http"
       RUST_LOG: "${TOOLS_RUST_LOG:-tools_server=debug,tower_http=debug}"
     ports:

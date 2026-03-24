@@ -1,9 +1,16 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json, Router,
+    extract::State,
+    http::StatusCode,
+    routing::{get, post},
+};
 use llm_client::OllamaClient;
 use shared_types::{UiChatRequest, UiChatResponse};
-use tracing::error;
+use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
+use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::{
@@ -52,4 +59,20 @@ pub async fn chat(
             ))
         }
     }
+}
+
+pub async fn run_http_server(state: AppState, config: Config) -> anyhow::Result<()> {
+    let app = Router::new()
+        .route("/health", get(health))
+        .route("/chat", post(chat))
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.host_port));
+    info!("host listening on {}", addr);
+
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

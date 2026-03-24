@@ -1,6 +1,9 @@
 mod api;
+mod config;
 mod mcp_server;
 mod tools;
+
+use config::Config;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -18,6 +21,9 @@ async fn main() -> anyhow::Result<()> {
 
     match transport.as_str() {
         "mcp-stdio" => mcp_server::run_mcp_stdio().await,
-        _ => api::run_http_server().await,
+        _ => {
+            let config = Config::from_env();
+            api::run_http_server(config).await
+        }
     }
 }
