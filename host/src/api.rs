@@ -1,23 +1,16 @@
-use axum::{
-    Json, Router,
-    extract::State,
-    http::StatusCode,
-    routing::{get, post},
-};
-use std::{net::SocketAddr, sync::Arc};
-use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
-use tracing::{error, info};
+use axum::{Json, extract::State, http::StatusCode};
+use std::sync::Arc;
+use tracing::error;
 use uuid::Uuid;
+
+use shared_types::{UiChatRequest, UiChatResponse};
 
 use crate::domain::llm_backend::LlmBackend;
 use crate::domain::retriever::Retriever;
-
 use crate::{
     config::Config,
     domain::{llm_loop::run_chat_loop, tool_provider::ToolProvider},
 };
-use shared_types::{UiChatRequest, UiChatResponse};
 
 #[derive(Clone)]
 pub struct AppState {
