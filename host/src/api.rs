@@ -11,6 +11,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use crate::domain::llm_backend::LlmBackend;
+use crate::domain::retriever::Retriever;
 
 use crate::{
     config::Config,
@@ -23,6 +24,7 @@ pub struct AppState {
     pub config: Config,
     pub tool_provider: Arc<dyn ToolProvider>,
     pub llm_backend: Arc<dyn LlmBackend>,
+    pub retriever: Arc<dyn Retriever>,
 }
 
 pub async fn health() -> Json<serde_json::Value> {
@@ -42,6 +44,8 @@ pub async fn chat(
         request.message,
         state.llm_backend.as_ref(),
         state.tool_provider.as_ref(),
+        state.retriever.as_ref(),
+        state.config.retrieval_top_k,
         state.config.max_llm_steps,
     )
     .await

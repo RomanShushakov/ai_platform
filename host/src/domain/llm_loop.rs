@@ -2,17 +2,18 @@ use anyhow::{Context, Result, bail};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::domain::llm_backend::LlmBackend;
-use crate::domain::tool_provider::ToolProvider;
-
 use llm_client::ChatRequest;
-use shared_types::{LlmMessage, LlmOutput, UiChatResponse};
+use shared_types::{LlmMessage, LlmOutput, RetrievalQuery, UiChatResponse};
+
+use crate::domain::{llm_backend::LlmBackend, retriever::Retriever, tool_provider::ToolProvider};
 
 pub async fn run_chat_loop(
     request_id: Uuid,
     user_message: String,
     llm_backend: &dyn LlmBackend,
     tool_provider: &dyn ToolProvider,
+    retriever: &dyn Retriever,
+    retrieval_top_k: usize,
     max_steps: usize,
 ) -> Result<UiChatResponse> {
     let mut steps = Vec::new();
@@ -20,9 +21,40 @@ pub async fn run_chat_loop(
     let tools = tool_provider.list_tools().await?;
     steps.push(format!("Loaded {} tool(s)", tools.len()));
 
-    let mut messages = vec![LlmMessage::User {
+    let retrieval = retriever
+        .retrieve(RetrievalQuery {
+            query: user_message.clone(),
+            top_k: retrieval_top_k,
+        })
+        .await?;
+
+    steps.push(format!("Retrieved {} chunk(s)", retrieval.chunks.len()));
+
+    let mut messages = Vec::new();
+
+    if !retrieval.chunks.is_empty() {
+        let mut context = String::from("Retrieved context:\n");
+
+        for chunk in &retrieval.chunks {
+            context.push_str(&format!(
+                "\n[{} / {}]\n{}\n",
+                chunk.doc_id, chunk.chunk_id, chunk.content
+            ));
+        }
+
+        messages.push(LlmMessage::System {
+            content: format!(
+                "Use the retrieved context when it is relevant. \
+                If the retrieved context is insufficient, \
+                you may use tools or answer directly if appropriate.\n\n{}",
+                context
+            ),
+        });
+    }
+
+    messages.push(LlmMessage::User {
         content: user_message,
-    }];
+    });
 
     for step_idx in 0..max_steps {
         info!(request_id = %request_id, step = step_idx, "calling llm");

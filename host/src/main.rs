@@ -12,16 +12,15 @@ mod api;
 mod config;
 mod domain;
 
-use crate::{
-    config::Config,
-    domain::{llm_backend::LlmBackend, tool_provider::ToolProvider},
-};
+use adapters::noop_retriever::NoopRetriever;
 use adapters::{
     http_tool_provider::HttpToolProvider, mcp_tool_provider::McpToolProvider,
     ollama_llm_backend::OllamaLlmBackend, tools_client::ToolsClient,
     vllm_llm_backend::VllmLlmBackend,
 };
 use api::AppState;
+use config::Config;
+use domain::{llm_backend::LlmBackend, retriever::Retriever, tool_provider::ToolProvider};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -74,10 +73,19 @@ async fn main() -> anyhow::Result<()> {
         other => anyhow::bail!("unsupported LLM_BACKEND value: {}", other),
     };
 
+    let retriever: Arc<dyn Retriever> = match config.retrieval_backend.as_str() {
+        "noop" => {
+            info!("using noop retriever");
+            Arc::new(NoopRetriever)
+        }
+        other => anyhow::bail!("unsupported RETRIEVAL_BACKEND value: {}", other),
+    };
+
     let state = AppState {
         config: config.clone(),
         tool_provider,
         llm_backend,
+        retriever,
     };
 
     let app = Router::new()

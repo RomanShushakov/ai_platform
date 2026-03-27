@@ -7,6 +7,8 @@ pub struct Config {
     pub llm_backend: String,
     pub llm_base_url: String,
     pub llm_model: String,
+    pub retrieval_backend: String,
+    pub retrieval_top_k: usize,
     pub max_llm_steps: usize,
 }
 
@@ -32,6 +34,14 @@ impl Config {
                 .unwrap_or_else(|_| "http://localhost:11434".to_string()),
 
             llm_model: std::env::var("LLM_MODEL").unwrap_or_else(|_| "llama3".to_string()),
+
+            retrieval_backend: std::env::var("RETRIEVAL_BACKEND")
+                .unwrap_or_else(|_| "noop".to_string()),
+
+            retrieval_top_k: std::env::var("RETRIEVAL_TOP_K")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(4),
 
             max_llm_steps: std::env::var("MAX_LLM_STEPS")
                 .ok()

@@ -48,3 +48,24 @@ pub enum LlmMessage {
     Assistant { content: String },
     ToolResult { tool_name: String, content: Value },
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrievedChunk {
+    pub doc_id: String,
+    pub chunk_id: String,
+    pub title: String,
+    pub content: String,
+    pub score: f32,
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrievalQuery {
+    pub query: String,
+    pub top_k: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RetrievalResult {
+    pub chunks: Vec<RetrievedChunk>,
+}
