@@ -64,19 +64,3 @@ pub async fn chat(
         }
     }
 }
-
-pub async fn run_http_server(state: AppState, config: Config) -> anyhow::Result<()> {
-    let app = Router::new()
-        .route("/health", get(health))
-        .route("/chat", post(chat))
-        .layer(TraceLayer::new_for_http())
-        .with_state(state);
-
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.host_port));
-    info!("host listening on {}", addr);
-
-    let listener = TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
-
-    Ok(())
-}
