@@ -1,19 +1,27 @@
+use axum::{
+    Router,
+    routing::{get, post},
+};
+use std::{net::SocketAddr, sync::Arc};
+use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
+use tracing::info;
+
 mod adapters;
 mod api;
 mod config;
 mod domain;
 
-use std::sync::Arc;
-
+use crate::{
+    config::Config,
+    domain::{llm_backend::LlmBackend, tool_provider::ToolProvider},
+};
 use adapters::{
     http_tool_provider::HttpToolProvider, mcp_tool_provider::McpToolProvider,
-    tools_client::ToolsClient,
+    ollama_llm_backend::OllamaLlmBackend, tools_client::ToolsClient,
+    vllm_llm_backend::VllmLlmBackend,
 };
 use api::AppState;
-use llm_client::OllamaClient;
-use tracing::info;
-
-use crate::{config::Config, domain::tool_provider::ToolProvider};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -40,14 +48,49 @@ async fn main() -> anyhow::Result<()> {
         other => anyhow::bail!("unsupported TOOL_PROVIDER value: {}", other),
     };
 
-    let state: AppState = AppState {
-        tool_provider,
-        llm_client: Arc::new(OllamaClient::new(
-            config.ollama_base_url.clone(),
-            config.ollama_model.clone(),
-        )),
-        config: config.clone(),
+    let llm_backend: Arc<dyn LlmBackend> = match config.llm_backend.as_str() {
+        "ollama" => {
+            info!(
+                base_url = %config.llm_base_url,
+                model = %config.llm_model,
+                "using Ollama LLM backend"
+            );
+            Arc::new(OllamaLlmBackend::new(
+                config.llm_base_url.clone(),
+                config.llm_model.clone(),
+            ))
+        }
+        "vllm" => {
+            info!(
+                base_url = %config.llm_base_url,
+                model = %config.llm_model,
+                "using vLLM LLM backend"
+            );
+            Arc::new(VllmLlmBackend::new(
+                config.llm_base_url.clone(),
+                config.llm_model.clone(),
+            ))
+        }
+        other => anyhow::bail!("unsupported LLM_BACKEND value: {}", other),
     };
 
-    api::run_http_server(state, config).await
+    let state = AppState {
+        config: config.clone(),
+        tool_provider,
+        llm_backend,
+    };
+
+    let app = Router::new()
+        .route("/health", get(api::health))
+        .route("/chat", post(api::chat))
+        .layer(TraceLayer::new_for_http())
+        .with_state(state);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.host_port));
+    info!("host listening on {}", addr);
+
+    let listener = TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

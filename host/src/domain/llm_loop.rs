@@ -1,15 +1,17 @@
 use anyhow::{Context, Result, bail};
-use llm_client::LlmClient;
-use shared_types::{LlmMessage, LlmOutput, UiChatResponse};
 use tracing::info;
 use uuid::Uuid;
 
+use crate::domain::llm_backend::LlmBackend;
 use crate::domain::tool_provider::ToolProvider;
+
+use llm_client::ChatRequest;
+use shared_types::{LlmMessage, LlmOutput, UiChatResponse};
 
 pub async fn run_chat_loop(
     request_id: Uuid,
     user_message: String,
-    llm_client: &dyn LlmClient,
+    llm_backend: &dyn LlmBackend,
     tool_provider: &dyn ToolProvider,
     max_steps: usize,
 ) -> Result<UiChatResponse> {
@@ -25,8 +27,11 @@ pub async fn run_chat_loop(
     for step_idx in 0..max_steps {
         info!(request_id = %request_id, step = step_idx, "calling llm");
 
-        let llm_output = llm_client
-            .chat_with_messages(messages.clone(), tools.clone())
+        let llm_output = llm_backend
+            .chat(ChatRequest {
+                messages: messages.clone(),
+                tools: tools.clone(),
+            })
             .await
             .with_context(|| format!("llm call failed at step {}", step_idx))?;
 

@@ -1,28 +1,28 @@
-use std::{net::SocketAddr, sync::Arc};
-
 use axum::{
     Json, Router,
     extract::State,
     http::StatusCode,
     routing::{get, post},
 };
-use llm_client::OllamaClient;
-use shared_types::{UiChatRequest, UiChatResponse};
+use std::{net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 use uuid::Uuid;
 
+use crate::domain::llm_backend::LlmBackend;
+
 use crate::{
     config::Config,
     domain::{llm_loop::run_chat_loop, tool_provider::ToolProvider},
 };
+use shared_types::{UiChatRequest, UiChatResponse};
 
 #[derive(Clone)]
 pub struct AppState {
     pub config: Config,
     pub tool_provider: Arc<dyn ToolProvider>,
-    pub llm_client: Arc<OllamaClient>,
+    pub llm_backend: Arc<dyn LlmBackend>,
 }
 
 pub async fn health() -> Json<serde_json::Value> {
@@ -40,7 +40,7 @@ pub async fn chat(
     match run_chat_loop(
         request_id,
         request.message,
-        state.llm_client.as_ref(),
+        state.llm_backend.as_ref(),
         state.tool_provider.as_ref(),
         state.config.max_llm_steps,
     )
