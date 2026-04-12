@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use std::collections::HashSet;
 use tracing::info;
 use uuid::Uuid;
 
@@ -28,14 +29,32 @@ pub async fn run_chat_loop(
         })
         .await?;
 
-    let sources: Vec<SourceRef> = retrieval
-        .chunks
-        .iter()
-        .map(|c| SourceRef {
-            doc_id: c.doc_id.clone(),
-            title: c.title.clone(),
-        })
-        .collect();
+    let retrieval_confidence = if retrieval.chunks.is_empty() {
+        None
+    } else {
+        let max_score = retrieval
+            .chunks
+            .iter()
+            .map(|c| c.score)
+            .fold(0.0_f32, f32::max);
+
+        let normalized = (max_score / 5.0).min(1.0);
+        Some(normalized)
+    };
+
+    let mut seen_sources = HashSet::new();
+    let mut sources = Vec::new();
+
+    for chunk in &retrieval.chunks {
+        let key = format!("{}::{}", chunk.doc_id, chunk.title);
+
+        if seen_sources.insert(key) {
+            sources.push(SourceRef {
+                doc_id: chunk.doc_id.clone(),
+                title: chunk.title.clone(),
+            });
+        }
+    }
 
     steps.push(format!("Retrieved {} chunk(s)", retrieval.chunks.len()));
 
@@ -53,7 +72,14 @@ pub async fn run_chat_loop(
             ));
         }
 
-        messages.push(LlmMessage::System { content: context });
+        messages.push(LlmMessage::System {
+            content: format!(
+                "Retrieved knowledge base context is provided below. \
+                For documentation and policy questions, \
+                prefer answering from this retrieved context before calling tools.\n\n{}",
+                context
+            ),
+        });
     }
 
     messages.push(LlmMessage::User {
@@ -80,6 +106,7 @@ pub async fn run_chat_loop(
                     steps,
                     request_id,
                     sources,
+                    retrieval_confidence,
                 });
             }
 

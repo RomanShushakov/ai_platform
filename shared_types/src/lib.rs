@@ -13,6 +13,7 @@ pub struct UiChatResponse {
     pub steps: Vec<String>,
     pub request_id: Uuid,
     pub sources: Vec<SourceRef>,
+    pub retrieval_confidence: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
