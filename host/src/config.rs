@@ -10,6 +10,7 @@ pub struct Config {
     pub llm_model: String,
     pub retrieval_backend: String,
     pub retrieval_top_k: usize,
+    pub knowledge_base_path: String,
     pub max_llm_steps: usize,
 }
 
@@ -46,6 +47,9 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(4),
+
+            knowledge_base_path: std::env::var("KNOWLEDGE_BASE_PATH")
+                .unwrap_or_else(|_| "knowledge_base".to_string()),
 
             max_llm_steps: std::env::var("MAX_LLM_STEPS")
                 .ok()

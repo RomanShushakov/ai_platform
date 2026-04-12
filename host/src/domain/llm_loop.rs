@@ -33,23 +33,18 @@ pub async fn run_chat_loop(
     let mut messages = Vec::new();
 
     if !retrieval.chunks.is_empty() {
-        let mut context = String::from("Retrieved context:\n");
+        let mut context = String::from(
+            "Retrieved knowledge base context. Prefer this context for documentation and policy questions.\n",
+        );
 
         for chunk in &retrieval.chunks {
             context.push_str(&format!(
-                "\n[{} / {}]\n{}\n",
-                chunk.doc_id, chunk.chunk_id, chunk.content
+                "\n[doc_id: {} | chunk_id: {} | title: {}]\n{}\n",
+                chunk.doc_id, chunk.chunk_id, chunk.title, chunk.content
             ));
         }
 
-        messages.push(LlmMessage::System {
-            content: format!(
-                "Use the retrieved context when it is relevant. \
-                If the retrieved context is insufficient, \
-                you may use tools or answer directly if appropriate.\n\n{}",
-                context
-            ),
-        });
+        messages.push(LlmMessage::System { content: context });
     }
 
     messages.push(LlmMessage::User {

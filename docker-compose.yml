@@ -31,12 +31,17 @@ services:
       LLM_CHAT_PATH: "${LLM_CHAT_PATH:-/api/chat}"
       LLM_MODEL: "${LLM_MODEL:-llama3}"
 
-      RETRIEVAL_BACKEND: "${RETRIEVAL_BACKEND:-noop}"
+      RETRIEVAL_BACKEND: "${RETRIEVAL_BACKEND:-inmemory_markdown}"
       RETRIEVAL_TOP_K: "${RETRIEVAL_TOP_K:-4}"
+      KNOWLEDGE_BASE_PATH: "${KNOWLEDGE_BASE_PATH:-/app/knowledge_base}"
 
       MAX_LLM_STEPS: "${MAX_LLM_STEPS:-4}"
 
       RUST_LOG: "${RUST_LOG:-host=debug,llm_client=debug,tower_http=debug}"
+
+    volumes:
+      - ./knowledge_base:/app/knowledge_base
+
     ports:
       - "3000:3000"
 

@@ -12,6 +12,7 @@ mod api;
 mod config;
 mod domain;
 
+use adapters::inmemory_markdown_retriever::InMemoryMarkdownRetriever;
 use adapters::noop_retriever::NoopRetriever;
 use adapters::{
     http_tool_provider::HttpToolProvider, mcp_tool_provider::McpToolProvider,
@@ -79,6 +80,15 @@ async fn main() -> anyhow::Result<()> {
         "noop" => {
             info!("using noop retriever");
             Arc::new(NoopRetriever)
+        }
+        "inmemory_markdown" => {
+            info!(
+                knowledge_base_path = %config.knowledge_base_path,
+                "using in-memory markdown retriever"
+            );
+            Arc::new(InMemoryMarkdownRetriever::load_from_dir(
+                &config.knowledge_base_path,
+            )?)
         }
         other => anyhow::bail!("unsupported RETRIEVAL_BACKEND value: {}", other),
     };
