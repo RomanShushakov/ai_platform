@@ -97,11 +97,16 @@ fn parse_llm_output(content: &str) -> Result<LlmOutput> {
 pub struct OllamaClient {
     http_client: Client,
     base_url: String,
+    chat_path: String,
     model: String,
 }
 
 impl OllamaClient {
-    pub fn new(base_url: impl Into<String>, model: impl Into<String>) -> Self {
+    pub fn new(
+        base_url: impl Into<String>,
+        chat_path: impl Into<String>,
+        model: impl Into<String>,
+    ) -> Self {
         let http_client = Client::builder()
             .timeout(Duration::from_secs(60))
             .build()
@@ -110,6 +115,7 @@ impl OllamaClient {
         Self {
             http_client,
             base_url: base_url.into(),
+            chat_path: chat_path.into(),
             model: model.into(),
         }
     }
@@ -118,7 +124,7 @@ impl OllamaClient {
 #[async_trait]
 impl LlmClient for OllamaClient {
     async fn chat(&self, request: ChatRequest) -> Result<LlmOutput> {
-        let url = format!("{}/api/chat", self.base_url);
+        let url = format!("{}{}", self.base_url.trim_end_matches('/'), self.chat_path);
 
         let system_prompt = build_system_prompt(&request.tools);
 

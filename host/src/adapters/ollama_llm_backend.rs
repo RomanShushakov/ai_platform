@@ -12,9 +12,13 @@ pub struct OllamaLlmBackend {
 }
 
 impl OllamaLlmBackend {
-    pub fn new(base_url: impl Into<String>, model: impl Into<String>) -> Self {
+    pub fn new(
+        base_url: impl Into<String>,
+        chat_path: impl Into<String>,
+        model: impl Into<String>,
+    ) -> Self {
         Self {
-            client: OllamaClient::new(base_url, model),
+            client: OllamaClient::new(base_url, chat_path, model),
         }
     }
 }

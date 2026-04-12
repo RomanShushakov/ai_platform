@@ -6,6 +6,7 @@ pub struct Config {
     pub mcp_tools_binary: String,
     pub llm_backend: String,
     pub llm_base_url: String,
+    pub llm_chat_path: String,
     pub llm_model: String,
     pub retrieval_backend: String,
     pub retrieval_top_k: usize,
@@ -32,6 +33,9 @@ impl Config {
 
             llm_base_url: std::env::var("LLM_BASE_URL")
                 .unwrap_or_else(|_| "http://localhost:11434".to_string()),
+
+            llm_chat_path: std::env::var("LLM_CHAT_PATH")
+                .unwrap_or_else(|_| "/api/chat".to_string()),
 
             llm_model: std::env::var("LLM_MODEL").unwrap_or_else(|_| "llama3".to_string()),
 

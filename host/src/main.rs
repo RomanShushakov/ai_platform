@@ -51,11 +51,13 @@ async fn main() -> anyhow::Result<()> {
         "ollama" => {
             info!(
                 base_url = %config.llm_base_url,
+                chat_path = %config.llm_chat_path,
                 model = %config.llm_model,
                 "using Ollama LLM backend"
             );
             Arc::new(OllamaLlmBackend::new(
                 config.llm_base_url.clone(),
+                config.llm_chat_path.clone(),
                 config.llm_model.clone(),
             ))
         }
