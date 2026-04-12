@@ -12,6 +12,7 @@ pub struct UiChatResponse {
     pub answer: String,
     pub steps: Vec<String>,
     pub request_id: Uuid,
+    pub sources: Vec<SourceRef>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,4 +69,10 @@ pub struct RetrievalQuery {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RetrievalResult {
     pub chunks: Vec<RetrievedChunk>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceRef {
+    pub doc_id: String,
+    pub title: String,
 }

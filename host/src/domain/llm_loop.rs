@@ -3,7 +3,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use llm_client::ChatRequest;
-use shared_types::{LlmMessage, LlmOutput, RetrievalQuery, UiChatResponse};
+use shared_types::{LlmMessage, LlmOutput, RetrievalQuery, SourceRef, UiChatResponse};
 
 use crate::domain::{llm_backend::LlmBackend, retriever::Retriever, tool_provider::ToolProvider};
 
@@ -27,6 +27,15 @@ pub async fn run_chat_loop(
             top_k: retrieval_top_k,
         })
         .await?;
+
+    let sources: Vec<SourceRef> = retrieval
+        .chunks
+        .iter()
+        .map(|c| SourceRef {
+            doc_id: c.doc_id.clone(),
+            title: c.title.clone(),
+        })
+        .collect();
 
     steps.push(format!("Retrieved {} chunk(s)", retrieval.chunks.len()));
 
@@ -70,6 +79,7 @@ pub async fn run_chat_loop(
                     answer: text,
                     steps,
                     request_id,
+                    sources,
                 });
             }
 
