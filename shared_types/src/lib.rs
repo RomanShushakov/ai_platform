@@ -14,6 +14,7 @@ pub struct UiChatResponse {
     pub request_id: Uuid,
     pub sources: Vec<SourceRef>,
     pub retrieval_confidence: Option<f32>,
+    pub safety_notes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,4 +85,19 @@ pub enum QueryRoute {
     RetrievalFirst,
     ToolFirst,
     Hybrid,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HybridLiveStatus {
+    NotNeeded,
+    ToolAvailable,
+    MissingTool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HybridAnalysis {
+    pub has_doc_intent: bool,
+    pub has_live_intent: bool,
+    pub live_status: HybridLiveStatus,
 }

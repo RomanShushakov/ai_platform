@@ -1,4 +1,4 @@
-use shared_types::QueryRoute;
+use shared_types::{HybridAnalysis, HybridLiveStatus, QueryRoute, ToolDefinition};
 
 pub fn route_query(query: &str) -> QueryRoute {
     let q = query.to_lowercase();
@@ -58,5 +58,64 @@ pub fn route_name(route: &QueryRoute) -> &'static str {
         QueryRoute::RetrievalFirst => "retrieval_first",
         QueryRoute::ToolFirst => "tool_first",
         QueryRoute::Hybrid => "hybrid",
+    }
+}
+
+fn has_live_tool_for_query(query: &str, tools: &[ToolDefinition]) -> bool {
+    if query.contains("weather") {
+        return tools.iter().any(|t| t.name == "get_weather");
+    }
+
+    if query.contains("reimbursement") {
+        return tools.iter().any(|t| t.name == "get_reimbursement_status");
+    }
+
+    false
+}
+
+pub fn analyze_hybrid_query(query: &str, tools: &[ToolDefinition]) -> HybridAnalysis {
+    let q = query.to_lowercase();
+
+    let doc_keywords = [
+        "policy",
+        "how do i",
+        "how to",
+        "guide",
+        "documentation",
+        "docs",
+        "process",
+        "architecture",
+        "faq",
+        "vacation",
+        "expense",
+    ];
+
+    let live_keywords = [
+        "current status",
+        "status of",
+        "my reimbursement",
+        "my request",
+        "live",
+        "today",
+        "now",
+        "current",
+        "check",
+    ];
+
+    let has_doc_intent = doc_keywords.iter().any(|kw| q.contains(kw));
+    let has_live_intent = live_keywords.iter().any(|kw| q.contains(kw));
+
+    let live_status = if !has_live_intent {
+        HybridLiveStatus::NotNeeded
+    } else if has_live_tool_for_query(&q, tools) {
+        HybridLiveStatus::ToolAvailable
+    } else {
+        HybridLiveStatus::MissingTool
+    };
+
+    HybridAnalysis {
+        has_doc_intent,
+        has_live_intent,
+        live_status,
     }
 }
