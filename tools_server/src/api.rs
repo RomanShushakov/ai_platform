@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
     routing::{get, post},
 };
-use serde_json::json;
+use serde_json::{Value, json};
 use shared_types::{ToolCallRequest, ToolDefinition, ToolResult};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
@@ -13,7 +13,7 @@ use tracing::info;
 
 use crate::{config::Config, tools};
 
-pub async fn health() -> Json<serde_json::Value> {
+pub async fn health() -> Json<Value> {
     Json(json!({
         "status": "ok"
     }))
@@ -25,7 +25,7 @@ pub async fn list_tools() -> Json<Vec<ToolDefinition>> {
 
 pub async fn call_tool(
     Json(request): Json<ToolCallRequest>,
-) -> Result<Json<ToolResult>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<ToolResult>, (StatusCode, Json<Value>)> {
     match tools::execute(request).await {
         Ok(result) => Ok(Json(result)),
         Err(err) => Err((

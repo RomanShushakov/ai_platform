@@ -1,4 +1,5 @@
 use axum::{Json, extract::State, http::StatusCode};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use tracing::error;
 use uuid::Uuid;
@@ -20,8 +21,8 @@ pub struct AppState {
     pub retriever: Arc<dyn Retriever>,
 }
 
-pub async fn health() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
+pub async fn health() -> Json<Value> {
+    Json(json!({
         "status": "ok"
     }))
 }
@@ -29,7 +30,7 @@ pub async fn health() -> Json<serde_json::Value> {
 pub async fn chat(
     State(state): State<AppState>,
     Json(request): Json<UiChatRequest>,
-) -> Result<Json<UiChatResponse>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<UiChatResponse>, (StatusCode, Json<Value>)> {
     let request_id = Uuid::new_v4();
 
     match run_chat_loop(
@@ -49,7 +50,7 @@ pub async fn chat(
 
             Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({
+                Json(json!({
                     "error": err.to_string(),
                     "request_id": request_id
                 })),

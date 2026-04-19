@@ -1,0 +1,82 @@
+[
+  {
+    "doc_id": "knowledge_base/hr/expense-policy.md",
+    "chunk_id": "chunk-0",
+    "title": "Expense Policy",
+    "content": "# Expense Policy\n\n## Allowed Expenses\n\n* Business travel\n* Client meetings\n* Conferences\n\n## Submission Process\n\n* Submit expenses via the Finance Portal\n* Attach receipts for all expenses\n\n## Approval Rules\n\n* Expenses under $100 → automatic approval\n* Expenses over $100 → manager approval required\n\n## Reimbursement\n\n* Processed within 5 business days after approval",
+    "score": 0.0,
+    "source": "knowledge_base/hr/expense-policy.md"
+  },
+  {
+    "doc_id": "knowledge_base/hr/vacation-policy.md",
+    "chunk_id": "chunk-0",
+    "title": "Vacation Policy",
+    "content": "# Vacation Policy\n\n## Overview\n\nEmployees are entitled to 25 days of paid vacation per year.\n\n## Request Process\n\n* Submit vacation request via the HR portal\n* Requests must be submitted at least 5 business days in advance\n* Manager approval is required\n\n## Extended Leave\n\n* For absences longer than 3 business days:\n\n* additional approval from department lead is required\n\n## Carry Over\n\n* Up to 5 unused days can be carried over to the next year\n\n## Notes",
+    "score": 0.0,
+    "source": "knowledge_base/hr/vacation-policy.md"
+  },
+  {
+    "doc_id": "knowledge_base/hr/vacation-policy.md",
+    "chunk_id": "chunk-1",
+    "title": "Vacation Policy",
+    "content": "* HR portal: https://hr.internal.company",
+    "score": 0.0,
+    "source": "knowledge_base/hr/vacation-policy.md"
+  },
+  {
+    "doc_id": "knowledge_base/hr/onboarding.md",
+    "chunk_id": "chunk-0",
+    "title": "Employee Onboarding",
+    "content": "# Employee Onboarding\n\n## First Day Checklist\n\n* Access company email\n* Set up development environment\n* Join Slack workspace\n\n## Accounts\n\n* GitHub\n* Jira\n* HR Portal\n\n## Training\n\n* Complete security training within first week\n* Review engineering guidelines\n\n## Contacts\n\n* HR: [hr@company.internal](mailto:hr@company.internal)\n* IT Support: [it@company.internal](mailto:it@company.internal)",
+    "score": 0.0,
+    "source": "knowledge_base/hr/onboarding.md"
+  },
+  {
+    "doc_id": "knowledge_base/engineering/incident-response.md",
+    "chunk_id": "chunk-0",
+    "title": "Incident Response",
+    "content": "# Incident Response\n\n## Definition\n\nAn incident is any event that disrupts service availability.\n\n## Steps\n\n1. Identify issue\n2. Notify team in Slack #incidents\n3. Assign incident owner\n4. Mitigate issue\n5. Write postmortem\n\n## Severity Levels\n\n* SEV1: full outage\n* SEV2: partial degradation\n* SEV3: minor issue\n\n## Postmortem\n\nMust be completed within 48 hours",
+    "score": 0.0,
+    "source": "knowledge_base/engineering/incident-response.md"
+  },
+  {
+    "doc_id": "knowledge_base/engineering/local-dev-setup.md",
+    "chunk_id": "chunk-0",
+    "title": "Local Development Setup",
+    "content": "# Local Development Setup\n\n## Requirements\n\n* Docker\n* Rust (latest stable)\n* Node.js (optional)\n\n## Setup Steps\n\n1. Clone repository\n2. Run `docker compose up`\n3. Verify services:\n\n* host: http://localhost:3000\n  * tools: http://localhost:3001\n\n## Notes\n\n* Use `.env` file for configuration\n* Logs are available via `docker compose logs`",
+    "score": 0.0,
+    "source": "knowledge_base/engineering/local-dev-setup.md"
+  },
+  {
+    "doc_id": "knowledge_base/engineering/architecture-overview.md",
+    "chunk_id": "chunk-0",
+    "title": "Architecture Overview",
+    "content": "# Architecture Overview\n\n## Components\n\n* Rust Host (API + orchestration)\n* MCP Tools Server\n* LLM Backend (Ollama / vLLM)\n* Retrieval Layer (RAG)\n\n## Flow\n\nUser → Host → LLM → Tools / Retrieval → Response\n\n## Notes\n\n* System is modular\n* Backends are configurable via environment variables",
+    "score": 0.0,
+    "source": "knowledge_base/engineering/architecture-overview.md"
+  },
+  {
+    "doc_id": "knowledge_base/product/release-process.md",
+    "chunk_id": "chunk-0",
+    "title": "Release Process",
+    "content": "# Release Process\n\n## Steps\n\n1. Merge PR to main\n2. Run CI pipeline\n3. Build Docker images\n4. Deploy to staging\n5. Run tests\n6. Deploy to production\n\n## Rollback\n\n* Use previous stable Docker image",
+    "score": 0.0,
+    "source": "knowledge_base/product/release-process.md"
+  },
+  {
+    "doc_id": "knowledge_base/product/support-guidelines.md",
+    "chunk_id": "chunk-0",
+    "title": "Support Guidelines",
+    "content": "# Support Guidelines\n\n## Response Time\n\n* Critical: 1 hour\n* High: 4 hours\n* Normal: 24 hours\n\n## Channels\n\n* Slack support channel\n* Email support\n\n## Escalation\n\n* Escalate to engineering if unresolved after 24 hours",
+    "score": 0.0,
+    "source": "knowledge_base/product/support-guidelines.md"
+  },
+  {
+    "doc_id": "knowledge_base/product/faq.md",
+    "chunk_id": "chunk-0",
+    "title": "Product FAQ",
+    "content": "# Product FAQ\n\n## What is this system?\n\nAn internal AI assistant for company knowledge and workflows.\n\n## What can it do?\n\n* Answer questions about company policies\n* Retrieve documentation\n* Call internal tools\n\n## Limitations\n\n* May hallucinate if data is missing\n* Depends on available tools and documents",
+    "score": 0.0,
+    "source": "knowledge_base/product/faq.md"
+  }
+]

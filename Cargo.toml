@@ -1,5 +1,5 @@
 [workspace]
-members = ["host", "tools_server", "llm_client", "shared_types"]
+members = ["host", "tools_server", "llm_client", "shared_types", "rag_indexer"]
 resolver = "2"
 
 [workspace.package]

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest::Client;
-use serde_json::json;
+use serde_json::{Value, json};
 use std::time::Duration;
 use tracing::info;
 
@@ -37,7 +37,7 @@ fn build_system_prompt(tools: &[ToolDefinition]) -> String {
     )
 }
 
-fn convert_messages(messages: Vec<LlmMessage>) -> Vec<serde_json::Value> {
+fn convert_messages(messages: Vec<LlmMessage>) -> Vec<Value> {
     messages
         .into_iter()
         .map(|msg| match msg {
@@ -66,7 +66,7 @@ fn convert_messages(messages: Vec<LlmMessage>) -> Vec<serde_json::Value> {
 }
 
 fn parse_llm_output(content: &str) -> Result<LlmOutput> {
-    let value: serde_json::Value =
+    let value: Value =
         serde_json::from_str(content).context("failed to parse LLM JSON response")?;
 
     let t = value["type"].as_str().context("missing type field")?;
@@ -158,7 +158,7 @@ impl LlmClient for OllamaClient {
             anyhow::bail!("ollama error: {} {}", status, text);
         }
 
-        let value: serde_json::Value = resp.json().await?;
+        let value: Value = resp.json().await?;
 
         let content = value["message"]["content"]
             .as_str()
