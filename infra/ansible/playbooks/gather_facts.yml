@@ -1,0 +1,29 @@
+---
+- name: Gather and display host facts
+  hosts: all
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/common.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show basic host facts
+      ansible.builtin.debug:
+        msg:
+          - "inventory_hostname={{ inventory_hostname }}"
+          - "node_role={{ node_role }}"
+          - "ansible_host={{ ansible_host }}"
+          - "ansible_user={{ ansible_user }}"
+          - "ansible_python_interpreter={{ ansible_python_interpreter }}"
+          - "hostname={{ ansible_facts['hostname'] }}"
+          - "distribution={{ ansible_facts['distribution'] }} {{
+            ansible_facts['distribution_version'] }}"
+          - "arch={{ ansible_facts['architecture'] }}"
+          - "python_executable={{ ansible_facts['python']['executable'] }}"
+          - "memory_mb={{ ansible_facts['memtotal_mb'] }}"

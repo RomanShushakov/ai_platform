@@ -1,0 +1,5 @@
+ansible-playbook playbooks/gather_facts.yml
+
+ansible-playbook playbooks/bootstrap.yml --check -K
+ansible-playbook playbooks/bootstrap.yml -K
+ansible-playbook playbooks/bootstrap_rollback.yml --check -K

@@ -1,0 +1,9 @@
+bootstrap_common_packages:
+  - curl
+  - wget
+  - git
+  - htop
+  - rsync
+  - python3-apt
+  - ca-certificates
+  - vim

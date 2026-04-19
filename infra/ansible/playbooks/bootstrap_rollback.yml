@@ -1,0 +1,33 @@
+---
+- name: Roll back bootstrap baseline packages
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/common.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Rolling back bootstrap on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Remove common bootstrap packages
+      ansible.builtin.apt:
+        name: "{{ bootstrap_common_packages }}"
+        state: absent
+        autoremove: true
+        purge: true
+
+    - name: Show rollback completion message
+      ansible.builtin.debug:
+        msg:
+          - "Bootstrap rollback completed on {{ inventory_hostname }}"
