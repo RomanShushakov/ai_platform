@@ -1,0 +1,49 @@
+---
+- name: Verify Munge key and service
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared Slurm vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Check Munge key file
+      ansible.builtin.stat:
+        path: "{{ munge_key_path }}"
+      register: munge_key_stat
+
+    - name: Show Munge key file info
+      ansible.builtin.debug:
+        msg:
+          - "Host={{ inventory_hostname }}"
+          - "exists={{ munge_key_stat.stat.exists }}"
+          - "owner={{ munge_key_stat.stat.pw_name | default('unknown') }}"
+          - "group={{ munge_key_stat.stat.gr_name | default('unknown') }}"
+          - "mode={{ munge_key_stat.stat.mode | default('unknown') }}"
+
+    - name: Check Munge service active state
+      ansible.builtin.command: systemctl is-active {{ munge_service_name }}
+      register: munge_active
+      changed_when: false
+      failed_when: false
+
+    - name: Run munge test
+      ansible.builtin.shell: |
+        munge -n | unmunge | grep STATUS
+      register: munge_test
+      changed_when: false
+      failed_when: false
+
+    - name: Show Munge verification summary
+      ansible.builtin.debug:
+        msg:
+          - "Host={{ inventory_hostname }}"
+          - "munge active={{ munge_active.stdout | default('unknown') }}"
+          - "munge test={{ munge_test.stdout_lines | default([]) }}"

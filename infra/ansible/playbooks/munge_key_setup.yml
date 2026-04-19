@@ -1,0 +1,79 @@
+---
+- name: Generate and distribute Munge key
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared Slurm vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+    - name: Set controller host
+      ansible.builtin.set_fact:
+        slurm_controller_host: "{{ groups['slurm_controller'][0] }}"
+      run_once: true
+
+  tasks:
+    - name: Show Munge key setup target
+      ansible.builtin.debug:
+        msg:
+          - "Configuring Munge key on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+          - "Slurm node type: {{ slurm_node_type }}"
+          - "Controller host: {{ slurm_controller_host }}"
+
+    - name: Check whether Munge key exists on controller
+      ansible.builtin.stat:
+        path: "{{ munge_key_path }}"
+      delegate_to: "{{ slurm_controller_host }}"
+      run_once: true
+      register: munge_key_stat
+
+    - name: Generate Munge key on controller if missing
+      ansible.builtin.shell: |
+        dd if=/dev/urandom bs=1 count=1024 of={{ munge_key_path }}
+      args:
+        creates: "{{ munge_key_path }}"
+      delegate_to: "{{ slurm_controller_host }}"
+      run_once: true
+      when: not munge_key_stat.stat.exists
+
+    - name: Ensure Munge key ownership and mode on controller
+      ansible.builtin.file:
+        path: "{{ munge_key_path }}"
+        owner: "{{ munge_user }}"
+        group: "{{ munge_group }}"
+        mode: "{{ munge_key_mode }}"
+      delegate_to: "{{ slurm_controller_host }}"
+      run_once: true
+
+    - name: Read Munge key from controller
+      ansible.builtin.slurp:
+        src: "{{ munge_key_path }}"
+      delegate_to: "{{ slurm_controller_host }}"
+      run_once: true
+      register: munge_key_blob
+
+    - name: Copy Munge key to all nodes
+      ansible.builtin.copy:
+        content: "{{ munge_key_blob.content | b64decode }}"
+        dest: "{{ munge_key_path }}"
+        owner: "{{ munge_user }}"
+        group: "{{ munge_group }}"
+        mode: "{{ munge_key_mode }}"
+
+    - name: Restart Munge service
+      ansible.builtin.service:
+        name: "{{ munge_service_name }}"
+        state: restarted
+        enabled: true
+
+    - name: Show Munge key setup completion
+      ansible.builtin.debug:
+        msg:
+          - "Munge key configured on {{ inventory_hostname }}"

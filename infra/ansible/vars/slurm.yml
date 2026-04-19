@@ -6,3 +6,9 @@ munge_service_name: munge
 
 slurm_controller_service_name: slurmctld
 slurm_worker_service_name: slurmd
+
+munge_key_path: /etc/munge/munge.key
+munge_user: munge
+munge_group: munge
+munge_key_mode: "0400"
+munge_local_tmp_dir: /tmp/ai_platform_ansible_munge

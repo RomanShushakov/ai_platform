@@ -14,5 +14,13 @@ ansible-playbook playbooks/slurm_prereqs_verify.yml -K
 ansible-playbook playbooks/slurm_prereqs_rollback.yml --check -K
 ansible-playbook playbooks/slurm_prereqs_rollback.yml -K
 
-ansible all -b -m shell -a "dpkg -l | egrep 'munge|slurm-wlm'"
-ansible all -b -m shell -a "systemctl list-unit-files | egrep 'munge|slurm'"
+ansible all -b -m shell -a "dpkg -l | egrep 'munge|slurm-wlm'" -K
+ansible all -b -m shell -a "systemctl list-unit-files | egrep 'munge|slurm'" -K
+
+Step 3:
+ansible-playbook playbooks/munge_key_setup.yml --check -K
+ansible-playbook playbooks/munge_key_setup.yml -K
+ansible-playbook playbooks/munge_key_verify.yml -K
+
+ansible-playbook playbooks/munge_key_rollback.yml --check -K
+ansible-playbook playbooks/munge_key_rollback.yml -K
