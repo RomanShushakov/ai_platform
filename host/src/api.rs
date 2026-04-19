@@ -40,6 +40,7 @@ pub async fn chat(
         state.tool_provider.as_ref(),
         state.retriever.as_ref(),
         state.config.retrieval_top_k,
+        state.config.retrieval_use_threshold,
         state.config.max_llm_steps,
     )
     .await

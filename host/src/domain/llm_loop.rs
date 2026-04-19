@@ -15,6 +15,7 @@ pub async fn run_chat_loop(
     tool_provider: &dyn ToolProvider,
     retriever: &dyn Retriever,
     retrieval_top_k: usize,
+    retrieval_use_threshold: f32,
     max_steps: usize,
 ) -> Result<UiChatResponse> {
     let mut steps = Vec::new();
@@ -29,40 +30,52 @@ pub async fn run_chat_loop(
         })
         .await?;
 
-    let retrieval_confidence = if retrieval.chunks.is_empty() {
-        None
-    } else {
-        let max_score = retrieval
-            .chunks
-            .iter()
-            .map(|c| c.score)
-            .fold(0.0_f32, f32::max);
+    let raw_retrieval_confidence = retrieval
+        .chunks
+        .iter()
+        .map(|c| c.score)
+        .fold(0.0_f32, f32::max);
 
-        let normalized = (max_score / 5.0).min(1.0);
-        Some(normalized)
+    let use_retrieval =
+        !retrieval.chunks.is_empty() && raw_retrieval_confidence >= retrieval_use_threshold;
+
+    let retrieval_confidence = if use_retrieval {
+        Some(raw_retrieval_confidence)
+    } else {
+        None
     };
 
     let mut seen_sources = HashSet::new();
     let mut sources = Vec::new();
 
-    for chunk in &retrieval.chunks {
-        let key = format!("{}::{}", chunk.doc_id, chunk.title);
+    if use_retrieval {
+        for chunk in &retrieval.chunks {
+            let key = format!("{}::{}", chunk.doc_id, chunk.title);
 
-        if seen_sources.insert(key) {
-            sources.push(SourceRef {
-                doc_id: chunk.doc_id.clone(),
-                title: chunk.title.clone(),
-            });
+            if seen_sources.insert(key) {
+                sources.push(SourceRef {
+                    doc_id: chunk.doc_id.clone(),
+                    title: chunk.title.clone(),
+                });
+            }
         }
     }
 
     steps.push(format!("Retrieved {} chunk(s)", retrieval.chunks.len()));
 
+    steps.push(format!(
+        "Retrieval confidence {:.3} ({})",
+        raw_retrieval_confidence,
+        if use_retrieval { "used" } else { "ignored" }
+    ));
+
     let mut messages = Vec::new();
 
-    if !retrieval.chunks.is_empty() {
+    if use_retrieval {
         let mut context = String::from(
-            "Retrieved knowledge base context. Prefer this context for documentation and policy questions.\n",
+            "Retrieved knowledge base context is provided below. \
+             For documentation and policy questions, prefer answering \
+             from this retrieved context before calling tools.\n",
         );
 
         for chunk in &retrieval.chunks {
@@ -72,14 +85,7 @@ pub async fn run_chat_loop(
             ));
         }
 
-        messages.push(LlmMessage::System {
-            content: format!(
-                "Retrieved knowledge base context is provided below. \
-                For documentation and policy questions, \
-                prefer answering from this retrieved context before calling tools.\n\n{}",
-                context
-            ),
-        });
+        messages.push(LlmMessage::System { content: context });
     }
 
     messages.push(LlmMessage::User {
@@ -134,11 +140,6 @@ pub async fn run_chat_loop(
             }
         }
     }
-
-    tracing::info!(
-        request_id = %request_id,
-        "final answer generated"
-    );
 
     bail!("max llm steps ({}) reached without final answer", max_steps)
 }

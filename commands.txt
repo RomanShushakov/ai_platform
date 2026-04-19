@@ -61,3 +61,7 @@ curl -X POST http://localhost:3000/chat \
 docker exec -it ai_platform_ollama ollama pull nomic-embed-text
 
 cargo run -p rag_indexer
+
+RETRIEVAL_BACKEND=embeddings_local \
+RAG_ARTIFACTS_PATH=artifacts/rag \
+cargo run -p host

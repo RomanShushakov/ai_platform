@@ -22,7 +22,7 @@ services:
     environment:
       HOST_PORT: "${HOST_PORT:-3000}"
 
-      TOOL_PROVIDER: "${TOOL_PROVIDER:-mcp}"
+      TOOL_PROVIDER: "${TOOL_PROVIDER:-mcp}" # options: http, mcp
       TOOLS_BASE_URL: "${TOOLS_BASE_URL:-http://tools-server:3001}"
       MCP_TOOLS_BINARY: "${MCP_TOOLS_BINARY:-/usr/local/bin/tools-server}"
 
@@ -31,16 +31,24 @@ services:
       LLM_CHAT_PATH: "${LLM_CHAT_PATH:-/api/chat}"
       LLM_MODEL: "${LLM_MODEL:-llama3}"
 
-      RETRIEVAL_BACKEND: "${RETRIEVAL_BACKEND:-inmemory_markdown}"
+      RETRIEVAL_BACKEND: "${RETRIEVAL_BACKEND:-embeddings_local}" # options: noop, inmemory_markdown, inmemory_markdown
       RETRIEVAL_TOP_K: "${RETRIEVAL_TOP_K:-4}"
       KNOWLEDGE_BASE_PATH: "${KNOWLEDGE_BASE_PATH:-/app/knowledge_base}"
 
       MAX_LLM_STEPS: "${MAX_LLM_STEPS:-4}"
 
+      RAG_ARTIFACTS_PATH: "${RAG_ARTIFACTS_PATH:-/app/artifacts/rag}"
+      EMBEDDING_MODEL: "${EMBEDDING_MODEL:-nomic-embed-text}"
+
+      RETRIEVAL_MIN_SCORE: "${RETRIEVAL_MIN_SCORE:-0.45}"
+      RETRIEVAL_RELATIVE_RATIO: "${RETRIEVAL_RELATIVE_RATIO:-0.95}"
+      RETRIEVAL_USE_THRESHOLD: "${RETRIEVAL_USE_THRESHOLD:-0.12}"
+
       RUST_LOG: "${RUST_LOG:-host=debug,llm_client=debug,tower_http=debug}"
 
     volumes:
       - ./knowledge_base:/app/knowledge_base
+      - ./artifacts:/app/artifacts
 
     ports:
       - "3000:3000"

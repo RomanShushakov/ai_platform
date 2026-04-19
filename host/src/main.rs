@@ -12,6 +12,7 @@ mod api;
 mod config;
 mod domain;
 
+use adapters::embeddings_retriever::EmbeddingsRetriever;
 use adapters::inmemory_markdown_retriever::InMemoryMarkdownRetriever;
 use adapters::noop_retriever::NoopRetriever;
 use adapters::{
@@ -88,6 +89,17 @@ async fn main() -> anyhow::Result<()> {
             );
             Arc::new(InMemoryMarkdownRetriever::load_from_dir(
                 &config.knowledge_base_path,
+            )?)
+        }
+        "embeddings_local" => {
+            info!("using embeddings retriever");
+
+            Arc::new(EmbeddingsRetriever::load(
+                &config.rag_artifacts_path,
+                config.llm_base_url.clone(),
+                config.embedding_model.clone(),
+                config.retrieval_min_score,
+                config.retrieval_relative_ratio,
             )?)
         }
         other => anyhow::bail!("unsupported RETRIEVAL_BACKEND value: {}", other),

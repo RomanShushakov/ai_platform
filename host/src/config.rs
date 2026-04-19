@@ -12,6 +12,11 @@ pub struct Config {
     pub retrieval_top_k: usize,
     pub knowledge_base_path: String,
     pub max_llm_steps: usize,
+    pub rag_artifacts_path: String,
+    pub embedding_model: String,
+    pub retrieval_min_score: f32,
+    pub retrieval_relative_ratio: f32,
+    pub retrieval_use_threshold: f32,
 }
 
 impl Config {
@@ -55,6 +60,27 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(4),
+
+            rag_artifacts_path: std::env::var("RAG_ARTIFACTS_PATH")
+                .unwrap_or_else(|_| "artifacts/rag".to_string()),
+
+            embedding_model: std::env::var("EMBEDDING_MODEL")
+                .unwrap_or_else(|_| "nomic-embed-text".to_string()),
+
+            retrieval_min_score: std::env::var("RETRIEVAL_MIN_SCORE")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.45),
+
+            retrieval_relative_ratio: std::env::var("RETRIEVAL_RELATIVE_RATIO")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.95),
+
+            retrieval_use_threshold: std::env::var("RETRIEVAL_USE_THRESHOLD")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(0.12),
         }
     }
 }
