@@ -1,2 +1,3 @@
 ansible_python_interpreter: /usr/bin/python3.13
 node_role: slurm_controller
+slurm_node_type: controller

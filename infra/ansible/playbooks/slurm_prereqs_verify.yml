@@ -1,0 +1,56 @@
+---
+- name: Verify Slurm prerequisites
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared Slurm vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Gather installed package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Check whether munge package is installed
+      ansible.builtin.debug:
+        msg:
+          - "munge installed = {{ 'munge' in ansible_facts.packages }}"
+          - "slurm-wlm installed = {{ 'slurm-wlm' in ansible_facts.packages }}"
+
+    - name: Check munge service enabled state
+      ansible.builtin.command: systemctl is-enabled {{ munge_service_name }}
+      register: munge_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Check munge service active state
+      ansible.builtin.command: systemctl is-active {{ munge_service_name }}
+      register: munge_active
+      changed_when: false
+      failed_when: false
+
+    - name: Check slurmctld service enabled state
+      ansible.builtin.command: systemctl is-enabled {{ slurm_controller_service_name }}
+      register: slurmctld_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Check slurmd service enabled state
+      ansible.builtin.command: systemctl is-enabled {{ slurm_worker_service_name }}
+      register: slurmd_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Show verification summary
+      ansible.builtin.debug:
+        msg:
+          - "Host={{ inventory_hostname }}"
+          - "munge enabled={{ munge_enabled.stdout | default('unknown') }}"
+          - "munge active={{ munge_active.stdout | default('unknown') }}"

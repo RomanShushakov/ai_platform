@@ -1,0 +1,8 @@
+slurm_packages_common:
+  - munge
+  - slurm-wlm
+
+munge_service_name: munge
+
+slurm_controller_service_name: slurmctld
+slurm_worker_service_name: slurmd

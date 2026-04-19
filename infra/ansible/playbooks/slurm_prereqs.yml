@@ -1,0 +1,78 @@
+---
+- name: Install Slurm prerequisites
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared common vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/common.yml"
+
+    - name: Load shared Slurm vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show Slurm prereqs target
+      ansible.builtin.debug:
+        msg:
+          - "Preparing host {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+          - "Slurm node type: {{ slurm_node_type }}"
+          - "Interpreter: {{ ansible_python_interpreter }}"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install common Slurm prerequisite packages
+      ansible.builtin.apt:
+        name: "{{ slurm_packages_common }}"
+        state: present
+
+    - name: Ensure munge service is enabled and started
+      ansible.builtin.service:
+        name: "{{ munge_service_name }}"
+        enabled: true
+        state: started
+
+    - name: Ensure slurmctld is enabled on controller
+      ansible.builtin.service:
+        name: "{{ slurm_controller_service_name }}"
+        enabled: true
+      when: slurm_node_type == "controller"
+
+    - name: Ensure slurmctld is disabled on worker
+      ansible.builtin.service:
+        name: "{{ slurm_controller_service_name }}"
+        enabled: false
+        state: stopped
+      when: slurm_node_type == "worker"
+      failed_when: false
+
+    - name: Ensure slurmd is enabled on worker
+      ansible.builtin.service:
+        name: "{{ slurm_worker_service_name }}"
+        enabled: true
+      when: slurm_node_type == "worker"
+
+    - name: Ensure slurmd is disabled on controller
+      ansible.builtin.service:
+        name: "{{ slurm_worker_service_name }}"
+        enabled: false
+        state: stopped
+      when: slurm_node_type == "controller"
+      failed_when: false
+
+    - name: Show prereqs completion message
+      ansible.builtin.debug:
+        msg:
+          - "Slurm prerequisite installation completed on {{ inventory_hostname
+            }}"
+          - "Installed packages: {{ slurm_packages_common | join(', ') }}"
