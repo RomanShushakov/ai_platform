@@ -77,3 +77,11 @@ pub struct SourceRef {
     pub doc_id: String,
     pub title: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum QueryRoute {
+    RetrievalFirst,
+    ToolFirst,
+    Hybrid,
+}

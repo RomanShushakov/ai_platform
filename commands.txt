@@ -65,3 +65,18 @@ cargo run -p rag_indexer
 RETRIEVAL_BACKEND=embeddings_local \
 RAG_ARTIFACTS_PATH=artifacts/rag \
 cargo run -p host
+
+tool first:
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the weather in Berlin?"}'
+
+retrieval first:
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'
+
+hybrid:
+curl -X POST http://localhost:3000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the expense policy and what is the current status of my reimbursement?"}'

@@ -4,9 +4,14 @@ use tracing::info;
 use uuid::Uuid;
 
 use llm_client::ChatRequest;
-use shared_types::{LlmMessage, LlmOutput, RetrievalQuery, SourceRef, UiChatResponse};
+use shared_types::{LlmMessage, LlmOutput, QueryRoute, RetrievalQuery, SourceRef, UiChatResponse};
 
-use crate::domain::{llm_backend::LlmBackend, retriever::Retriever, tool_provider::ToolProvider};
+use crate::domain::{
+    llm_backend::LlmBackend,
+    query_router::{route_name, route_query},
+    retriever::Retriever,
+    tool_provider::ToolProvider,
+};
 
 pub async fn run_chat_loop(
     request_id: Uuid,
@@ -23,12 +28,23 @@ pub async fn run_chat_loop(
     let tools = tool_provider.list_tools().await?;
     steps.push(format!("Loaded {} tool(s)", tools.len()));
 
-    let retrieval = retriever
-        .retrieve(RetrievalQuery {
-            query: user_message.clone(),
-            top_k: retrieval_top_k,
-        })
-        .await?;
+    let route = route_query(&user_message);
+    steps.push(format!("Query route: {}", route_name(&route)));
+
+    let retrieval = match route {
+        QueryRoute::ToolFirst => {
+            steps.push("Skipped retrieval for tool-first query".to_string());
+            shared_types::RetrievalResult::default()
+        }
+        QueryRoute::RetrievalFirst | QueryRoute::Hybrid => {
+            retriever
+                .retrieve(RetrievalQuery {
+                    query: user_message.clone(),
+                    top_k: retrieval_top_k,
+                })
+                .await?
+        }
+    };
 
     let raw_retrieval_confidence = retrieval
         .chunks
