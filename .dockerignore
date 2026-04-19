@@ -7,3 +7,5 @@ target
 dockerfile*
 docker-compose.yml
 command.txt
+
+infra/ansible/venv
