@@ -1,0 +1,34 @@
+---
+- name: Verify Slurm build
+  hosts: all
+  become: false
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+  tasks:
+    - name: Check slurmctld binary version
+      ansible.builtin.command: "{{ slurm_install_prefix }}/sbin/slurmctld -V"
+      register: slurmctld_out
+      changed_when: false
+
+    - name: Check slurmd binary version
+      ansible.builtin.command: "{{ slurm_install_prefix }}/sbin/slurmd -V"
+      register: slurmd_out
+      changed_when: false
+
+    - name: Check srun binary exists
+      ansible.builtin.stat:
+        path: "{{ slurm_install_prefix }}/bin/srun"
+      register: srun_stat
+
+    - name: Show version summary
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }}"
+          - "slurmctld={{ slurmctld_out.stdout }}"
+          - "slurmd={{ slurmd_out.stdout }}"
+          - "srun exists={{ srun_stat.stat.exists }}"

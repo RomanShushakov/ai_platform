@@ -8,6 +8,7 @@ slurm_user_name: slurm
 slurm_gid: 64031
 slurm_uid: 64031
 
-slurm_source_version: "24.11.5"
-slurm_install_prefix: /usr
-slurm_sysconfdir: /etc/slurm
+slurm_version: "24.11.5"
+slurm_src_url: "https://download.schedmd.com/slurm/slurm-24.11.5.tar.bz2"
+slurm_install_prefix: "/opt/slurm"
+slurm_build_dir: "/tmp/slurm-build"

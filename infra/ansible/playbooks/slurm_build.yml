@@ -1,0 +1,81 @@
+---
+- name: Build and install Slurm from source
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show build target
+      ansible.builtin.debug:
+        msg:
+          - "Building Slurm on {{ inventory_hostname }}"
+          - "Version: {{ slurm_version }}"
+          - "Install prefix: {{ slurm_install_prefix }}"
+
+    - name: Ensure build directory exists
+      ansible.builtin.file:
+        path: "{{ slurm_build_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Download Slurm source
+      ansible.builtin.get_url:
+        url: "{{ slurm_src_url }}"
+        dest: "{{ slurm_build_dir }}/slurm.tar.bz2"
+        mode: "0644"
+
+    - name: Extract Slurm source
+      ansible.builtin.unarchive:
+        src: "{{ slurm_build_dir }}/slurm.tar.bz2"
+        dest: "{{ slurm_build_dir }}"
+        remote_src: true
+
+    - name: Find extracted directory
+      ansible.builtin.find:
+        paths: "{{ slurm_build_dir }}"
+        patterns: "slurm-*"
+        file_type: directory
+      register: slurm_src_dir
+
+    - name: Set Slurm source dir fact
+      ansible.builtin.set_fact:
+        slurm_src_path: "{{ slurm_src_dir.files[0].path }}"
+
+    - name: Configure Slurm
+      ansible.builtin.command: >
+        ./configure --prefix={{ slurm_install_prefix }} --sysconfdir=/etc/slurm
+        --with-munge
+      args:
+        chdir: "{{ slurm_src_path }}"
+      register: configure_out
+
+    - name: Build Slurm
+      ansible.builtin.command: make -j{{ ansible_facts.processor_vcpus | default(2) }}
+      args:
+        chdir: "{{ slurm_src_path }}"
+
+    - name: Install Slurm
+      ansible.builtin.command: make install
+      args:
+        chdir: "{{ slurm_src_path }}"
+
+    - name: Ensure slurm binaries in PATH
+      ansible.builtin.copy:
+        dest: /etc/profile.d/slurm.sh
+        content: |
+          export PATH={{ slurm_install_prefix }}/bin:{{ slurm_install_prefix }}/sbin:$PATH
+        mode: "0644"
+
+    - name: Show build completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm {{ slurm_version }} installed on {{ inventory_hostname }}"

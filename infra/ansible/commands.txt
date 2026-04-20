@@ -63,3 +63,10 @@ ansible-playbook playbooks/slurm_build_prereqs_verify.yml -K
 
 ansible-playbook playbooks/slurm_build_prereqs_rollback.yml --check -K
 ansible-playbook playbooks/slurm_build_prereqs_rollback.yml -K
+
+
+Step 3:
+ansible-playbook playbooks/slurm_build.yml -K
+ansible-playbook playbooks/slurm_build_verify.yml -K
+
+ansible-playbook playbooks/slurm_build_rollback.yml -K
