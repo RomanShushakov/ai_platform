@@ -70,3 +70,6 @@ ansible-playbook playbooks/slurm_build.yml -K
 ansible-playbook playbooks/slurm_build_verify.yml -K
 
 ansible-playbook playbooks/slurm_build_rollback.yml -K
+
+ansible all -b -m shell -a "dpkg -l | egrep 'munge|slurm-wlm'" -K
+ansible all -b -m shell -a "systemctl list-unit-files | egrep 'munge|slurm'" -K
