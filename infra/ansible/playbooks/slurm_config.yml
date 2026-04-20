@@ -1,0 +1,75 @@
+---
+- name: Configure Slurm cluster
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared Slurm vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Ensure /etc/slurm exists
+      ansible.builtin.file:
+        path: /etc/slurm
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Ensure /var/log/slurm exists
+      ansible.builtin.file:
+        path: /var/log/slurm
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: "0755"
+
+    - name: Ensure slurmctld state directory exists
+      ansible.builtin.file:
+        path: /var/spool/slurmctld
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: "0755"
+      when: slurm_node_type == "controller"
+
+    - name: Ensure slurmd spool directory exists
+      ansible.builtin.file:
+        path: /var/spool/slurmd
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: "0755"
+
+    - name: Deploy slurm.conf
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/slurm.conf.j2"
+        dest: /etc/slurm/slurm.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Restart slurmctld on controller
+      ansible.builtin.service:
+        name: slurmctld
+        state: restarted
+        enabled: true
+      when: slurm_node_type == "controller"
+
+    - name: Restart slurmd on worker
+      ansible.builtin.service:
+        name: slurmd
+        state: restarted
+        enabled: true
+      when: slurm_node_type == "worker"
+
+    - name: Show config completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm configured on {{ inventory_hostname }}"

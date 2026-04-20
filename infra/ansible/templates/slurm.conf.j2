@@ -1,0 +1,26 @@
+ClusterName={{ slurm_cluster_name }}
+ControlMachine={{ slurm_controller_host }}
+
+SlurmUser=slurm
+AuthType=auth/munge
+
+StateSaveLocation=/var/spool/slurmctld
+SlurmdSpoolDir=/var/spool/slurmd
+
+SlurmctldLogFile=/var/log/slurm/slurmctld.log
+SlurmdLogFile=/var/log/slurm/slurmd.log
+
+SwitchType=switch/none
+MpiDefault=none
+
+SlurmctldPort=6817
+SlurmdPort=6818
+
+ProctrackType=proctrack/linuxproc
+ReturnToService=1
+
+{% for node in slurm_nodes %}
+NodeName={{ node.name }} CPUs={{ node.cpus }} RealMemory={{ node.memory }} State=UNKNOWN
+{% endfor %}
+
+PartitionName={{ slurm_partition_name }} Nodes=ALL Default=YES MaxTime=INFINITE State=UP

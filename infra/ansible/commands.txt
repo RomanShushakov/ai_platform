@@ -1,9 +1,12 @@
-Step 1:
+Step 0:
 ansible-playbook playbooks/gather_facts.yml
 
+
+Step 1:
 ansible-playbook playbooks/bootstrap.yml --check -K
 ansible-playbook playbooks/bootstrap.yml -K
 ansible-playbook playbooks/bootstrap_rollback.yml --check -K
+ansible-playbook playbooks/bootstrap_rollback.yml -K
 
 
 Step 2:
@@ -17,6 +20,7 @@ ansible-playbook playbooks/slurm_prereqs_rollback.yml -K
 ansible all -b -m shell -a "dpkg -l | egrep 'munge|slurm-wlm'" -K
 ansible all -b -m shell -a "systemctl list-unit-files | egrep 'munge|slurm'" -K
 
+
 Step 3:
 ansible-playbook playbooks/munge_key_setup.yml --check -K
 ansible-playbook playbooks/munge_key_setup.yml -K
@@ -24,3 +28,8 @@ ansible-playbook playbooks/munge_key_verify.yml -K
 
 ansible-playbook playbooks/munge_key_rollback.yml --check -K
 ansible-playbook playbooks/munge_key_rollback.yml -K
+
+
+Step 4:
+ansible-playbook playbooks/slurm_config.yml -K
+ansible-playbook playbooks/slurm_config_rollback.yml -K
