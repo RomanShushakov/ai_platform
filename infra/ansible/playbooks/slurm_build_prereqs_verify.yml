@@ -1,0 +1,24 @@
+---
+- name: Verify Slurm build prerequisites
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Check gcc
+      ansible.builtin.command: gcc --version
+      register: gcc_out
+      changed_when: false
+
+    - name: Check munge
+      ansible.builtin.command: munge -n
+      register: munge_out
+      changed_when: false
+      failed_when: false
+
+    - name: Show verification summary
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }}"
+          - "gcc OK"
+          - "munge test rc={{ munge_out.rc }}"

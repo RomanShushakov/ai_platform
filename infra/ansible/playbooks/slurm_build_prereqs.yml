@@ -1,0 +1,58 @@
+---
+- name: Install Slurm build prerequisites
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show build prereqs target
+      ansible.builtin.debug:
+        msg:
+          - "Installing build prerequisites on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install common build packages
+      ansible.builtin.apt:
+        name:
+          - build-essential
+          - gcc
+          - g++
+          - make
+          - pkg-config
+          - libssl-dev
+          - libpam0g-dev
+          - libmunge-dev
+          - munge
+          - libhwloc-dev
+          - liblz4-dev
+          - libjson-c-dev
+          - curl
+          - wget
+          - tar
+        state: present
+
+    - name: Ensure munge service is enabled
+      ansible.builtin.service:
+        name: munge
+        enabled: true
+        state: started
+      when: not ansible_check_mode
+
+    - name: Show prereqs completion
+      ansible.builtin.debug:
+        msg:
+          - "Build prerequisites installed on {{ inventory_hostname }}"

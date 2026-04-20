@@ -1,0 +1,40 @@
+---
+- name: Roll back Slurm build prerequisites safely
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show build prereqs rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Safely rolling back build prerequisites on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Remove optional Slurm build libraries only
+      ansible.builtin.apt:
+        name:
+          - libhwloc-dev
+          - liblz4-dev
+          - libjson-c-dev
+          - libpam0g-dev
+          - libssl-dev
+        state: absent
+        autoremove: true
+        purge: false
+
+    - name: Show safe rollback completion
+      ansible.builtin.debug:
+        msg:
+          - "Safe build prerequisites rollback completed on {{
+            inventory_hostname }}"
+          - "Kept munge and core toolchain installed intentionally"

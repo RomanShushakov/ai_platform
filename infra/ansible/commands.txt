@@ -54,3 +54,12 @@ ansible-playbook playbooks/slurm_identity_verify.yml -K
 
 ansible-playbook playbooks/slurm_identity_rollback.yml --check -K
 ansible-playbook playbooks/slurm_identity_rollback.yml -K
+
+
+Step 2:
+ansible-playbook playbooks/slurm_build_prereqs.yml --check -K
+ansible-playbook playbooks/slurm_build_prereqs.yml -K
+ansible-playbook playbooks/slurm_build_prereqs_verify.yml -K
+
+ansible-playbook playbooks/slurm_build_prereqs_rollback.yml --check -K
+ansible-playbook playbooks/slurm_build_prereqs_rollback.yml -K
