@@ -47,7 +47,19 @@ scontrol show nodes
 srun hostname
 
 
+
+Step 0:
+ansible-playbook playbooks/gather_facts.yml
+
+
 Step 1:
+ansible-playbook playbooks/bootstrap.yml --check -K
+ansible-playbook playbooks/bootstrap.yml -K
+ansible-playbook playbooks/bootstrap_rollback.yml --check -K
+ansible-playbook playbooks/bootstrap_rollback.yml -K
+
+
+Step 2:
 ansible-playbook playbooks/slurm_identity.yml --check -K
 ansible-playbook playbooks/slurm_identity.yml -K
 ansible-playbook playbooks/slurm_identity_verify.yml -K
@@ -56,7 +68,7 @@ ansible-playbook playbooks/slurm_identity_rollback.yml --check -K
 ansible-playbook playbooks/slurm_identity_rollback.yml -K
 
 
-Step 2:
+Step 3:
 ansible-playbook playbooks/slurm_build_prereqs.yml --check -K
 ansible-playbook playbooks/slurm_build_prereqs.yml -K
 ansible-playbook playbooks/slurm_build_prereqs_verify.yml -K
@@ -65,7 +77,7 @@ ansible-playbook playbooks/slurm_build_prereqs_rollback.yml --check -K
 ansible-playbook playbooks/slurm_build_prereqs_rollback.yml -K
 
 
-Step 3:
+Step 4:
 ansible-playbook playbooks/slurm_build.yml -K
 ansible-playbook playbooks/slurm_build_verify.yml -K
 
