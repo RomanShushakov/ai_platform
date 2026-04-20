@@ -1,0 +1,83 @@
+---
+- name: Roll back munge and slurm identities
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+  tasks:
+    - name: Show identity rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Rolling back identities on {{ inventory_hostname }}"
+          - "munge uid/gid={{ munge_uid }}/{{ munge_gid }}"
+          - "slurm uid/gid={{ slurm_uid }}/{{ slurm_gid }}"
+
+    - name: Check munge passwd entry
+      ansible.builtin.command: getent passwd {{ munge_user_name }}
+      register: munge_passwd
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Check munge group entry
+      ansible.builtin.command: getent group {{ munge_group_name }}
+      register: munge_group
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Check slurm passwd entry
+      ansible.builtin.command: getent passwd {{ slurm_user_name }}
+      register: slurm_passwd
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Check slurm group entry
+      ansible.builtin.command: getent group {{ slurm_group_name }}
+      register: slurm_group
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Remove slurm user if present
+      ansible.builtin.user:
+        name: "{{ slurm_user_name }}"
+        state: absent
+        remove: false
+      when: slurm_passwd.rc == 0
+
+    - name: Remove munge user if present
+      ansible.builtin.user:
+        name: "{{ munge_user_name }}"
+        state: absent
+        remove: false
+      when: munge_passwd.rc == 0
+
+    - name: Remove slurm group if present
+      ansible.builtin.group:
+        name: "{{ slurm_group_name }}"
+        state: absent
+      when: slurm_group.rc == 0
+      failed_when: false
+
+    - name: Remove munge group if present
+      ansible.builtin.group:
+        name: "{{ munge_group_name }}"
+        state: absent
+      when: munge_group.rc == 0
+      failed_when: false
+
+    - name: Show identity rollback summary
+      ansible.builtin.debug:
+        msg:
+          - "Rollback completed on {{ inventory_hostname }}"
+          - "Removed slurm user={{ slurm_passwd.rc == 0 }}"
+          - "Removed slurm group={{ slurm_group.rc == 0 }}"
+          - "Removed munge user={{ munge_passwd.rc == 0 }}"
+          - "Removed munge group={{ munge_group.rc == 0 }}"

@@ -20,7 +20,7 @@ ProctrackType=proctrack/linuxproc
 ReturnToService=1
 
 {% for node in slurm_nodes %}
-NodeName={{ node.name }} CPUs={{ node.cpus }} RealMemory={{ node.memory }} State=UNKNOWN
+NodeName={{ node.name }} Sockets={{ node.sockets }} CoresPerSocket={{ node.cores_per_socket }} ThreadsPerCore={{ node.threads_per_core }} RealMemory={{ node.memory }} State=UNKNOWN
 {% endfor %}
 
 PartitionName={{ slurm_partition_name }} Nodes=ALL Default=YES MaxTime=INFINITE State=UP

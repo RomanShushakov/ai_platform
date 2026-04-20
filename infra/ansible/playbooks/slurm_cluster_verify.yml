@@ -1,0 +1,43 @@
+---
+- name: Verify Slurm cluster state
+  hosts: slurm_controller
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load shared Slurm vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Check sinfo
+      ansible.builtin.command: sinfo
+      register: sinfo_result
+      changed_when: false
+      failed_when: false
+
+    - name: Check scontrol show nodes
+      ansible.builtin.command: scontrol show nodes
+      register: scontrol_nodes_result
+      changed_when: false
+      failed_when: false
+
+    - name: Check scontrol ping
+      ansible.builtin.command: scontrol ping
+      register: scontrol_ping_result
+      changed_when: false
+      failed_when: false
+
+    - name: Show Slurm verification summary
+      ansible.builtin.debug:
+        msg:
+          - "scontrol ping:"
+          - "{{ scontrol_ping_result.stdout | default('') }}"
+          - "sinfo:"
+          - "{{ sinfo_result.stdout | default('') }}"
+          - "nodes:"
+          - "{{ scontrol_nodes_result.stdout | default('') }}"

@@ -1,0 +1,13 @@
+munge_group_name: munge
+munge_user_name: munge
+munge_gid: 64030
+munge_uid: 64030
+
+slurm_group_name: slurm
+slurm_user_name: slurm
+slurm_gid: 64031
+slurm_uid: 64031
+
+slurm_source_version: "24.11.5"
+slurm_install_prefix: /usr
+slurm_sysconfdir: /etc/slurm

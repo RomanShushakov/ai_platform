@@ -1,0 +1,48 @@
+---
+- name: Verify munge and slurm identities
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+  tasks:
+    - name: Check munge passwd entry
+      ansible.builtin.command: getent passwd {{ munge_user_name }}
+      register: munge_passwd
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Check munge group entry
+      ansible.builtin.command: getent group {{ munge_group_name }}
+      register: munge_group
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Check slurm passwd entry
+      ansible.builtin.command: getent passwd {{ slurm_user_name }}
+      register: slurm_passwd
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Check slurm group entry
+      ansible.builtin.command: getent group {{ slurm_group_name }}
+      register: slurm_group
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Show identity summary
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }}"
+          - "munge passwd={{ munge_passwd.stdout | default('missing') }}"
+          - "munge group={{ munge_group.stdout | default('missing') }}"
+          - "slurm passwd={{ slurm_passwd.stdout | default('missing') }}"
+          - "slurm group={{ slurm_group.stdout | default('missing') }}"

@@ -33,3 +33,24 @@ ansible-playbook playbooks/munge_key_rollback.yml -K
 Step 4:
 ansible-playbook playbooks/slurm_config.yml -K
 ansible-playbook playbooks/slurm_config_rollback.yml -K
+
+
+Step 5:
+ansible-playbook playbooks/slurm_cluster_verify.yml -K
+
+manual check on raspberry:
+sudo systemctl restart slurmctld
+scontrol reconfigure
+sinfo
+scontrol show nodes
+
+srun hostname
+
+
+Step 1:
+ansible-playbook playbooks/slurm_identity.yml --check -K
+ansible-playbook playbooks/slurm_identity.yml -K
+ansible-playbook playbooks/slurm_identity_verify.yml -K
+
+ansible-playbook playbooks/slurm_identity_rollback.yml --check -K
+ansible-playbook playbooks/slurm_identity_rollback.yml -K

@@ -1,0 +1,85 @@
+---
+- name: Ensure consistent munge and slurm users/groups
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show identity target
+      ansible.builtin.debug:
+        msg:
+          - "Configuring identities on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Check existing group for munge gid
+      ansible.builtin.command: getent group {{ munge_gid }}
+      register: munge_gid_lookup
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Check existing group for slurm gid
+      ansible.builtin.command: getent group {{ slurm_gid }}
+      register: slurm_gid_lookup
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Fail if munge gid is occupied by a different group
+      ansible.builtin.fail:
+        msg: "Requested munge_gid={{ munge_gid }} is already used by: {{
+          munge_gid_lookup.stdout }}"
+      when:
+        - munge_gid_lookup.rc == 0
+        - not munge_gid_lookup.stdout.startswith(munge_group_name + ":")
+
+    - name: Fail if slurm gid is occupied by a different group
+      ansible.builtin.fail:
+        msg: "Requested slurm_gid={{ slurm_gid }} is already used by: {{
+          slurm_gid_lookup.stdout }}"
+      when:
+        - slurm_gid_lookup.rc == 0
+        - not slurm_gid_lookup.stdout.startswith(slurm_group_name + ":")
+
+    - name: Ensure munge group exists with fixed gid
+      ansible.builtin.group:
+        name: "{{ munge_group_name }}"
+        gid: "{{ munge_gid }}"
+        state: present
+
+    - name: Ensure munge user exists with fixed uid
+      ansible.builtin.user:
+        name: "{{ munge_user_name }}"
+        uid: "{{ munge_uid }}"
+        group: "{{ munge_group_name }}"
+        system: true
+        create_home: false
+        home: /nonexistent
+        shell: /usr/sbin/nologin
+        state: present
+
+    - name: Ensure slurm group exists with fixed gid
+      ansible.builtin.group:
+        name: "{{ slurm_group_name }}"
+        gid: "{{ slurm_gid }}"
+        state: present
+
+    - name: Ensure slurm user exists with fixed uid
+      ansible.builtin.user:
+        name: "{{ slurm_user_name }}"
+        uid: "{{ slurm_uid }}"
+        group: "{{ slurm_group_name }}"
+        system: true
+        create_home: false
+        home: /nonexistent
+        shell: /usr/sbin/nologin
+        state: present
