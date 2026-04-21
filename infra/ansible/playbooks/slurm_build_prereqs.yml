@@ -40,6 +40,8 @@
           - libhwloc-dev
           - liblz4-dev
           - libjson-c-dev
+          - dbus
+          - libdbus-1-dev
           - curl
           - wget
           - tar
@@ -49,8 +51,8 @@
       ansible.builtin.service:
         name: munge
         enabled: true
-        state: started
       when: not ansible_check_mode
+      failed_when: false
 
     - name: Show prereqs completion
       ansible.builtin.debug:

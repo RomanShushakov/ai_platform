@@ -4,11 +4,13 @@ ControlMachine={{ slurm_controller_host }}
 SlurmUser=slurm
 AuthType=auth/munge
 
-StateSaveLocation=/var/spool/slurmctld
-SlurmdSpoolDir=/var/spool/slurmd
+StateSaveLocation={{ slurm_state_dir_controller }}
+SlurmdSpoolDir={{ slurm_state_dir_worker }}
 
-SlurmctldLogFile=/var/log/slurm/slurmctld.log
-SlurmdLogFile=/var/log/slurm/slurmd.log
+SlurmctldLogFile={{ slurm_log_dir }}/slurmctld.log
+SlurmdLogFile={{ slurm_log_dir }}/slurmd.log
+SlurmctldPidFile=/run/slurm/slurmctld.pid
+SlurmdPidFile=/run/slurm/slurmd.pid
 
 SwitchType=switch/none
 MpiDefault=none

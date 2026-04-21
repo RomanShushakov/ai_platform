@@ -1,0 +1,38 @@
+---
+- name: Stop Slurm services
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show Slurm stop target
+      ansible.builtin.debug:
+        msg:
+          - "Stopping Slurm services on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Stop slurmctld on controller
+      ansible.builtin.service:
+        name: slurmctld
+        state: stopped
+        enabled: false
+      failed_when: false
+      when: slurm_node_type == "controller"
+
+    - name: Stop slurmd on worker
+      ansible.builtin.service:
+        name: slurmd
+        state: stopped
+        enabled: false
+      failed_when: false
+      when: slurm_node_type == "worker"
+
+    - name: Show Slurm stop completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm services stopped on {{ inventory_hostname }}"

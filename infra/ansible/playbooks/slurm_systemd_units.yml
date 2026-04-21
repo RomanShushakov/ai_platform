@@ -1,0 +1,62 @@
+---
+- name: Install custom Slurm systemd units
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Ensure slurm log directory exists
+      ansible.builtin.file:
+        path: "{{ slurm_log_dir }}"
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: "0755"
+
+    - name: Ensure slurmctld state directory exists on controller
+      ansible.builtin.file:
+        path: "{{ slurm_state_dir_controller }}"
+        state: directory
+        owner: slurm
+        group: slurm
+        mode: "0755"
+      when: slurm_node_type == "controller"
+
+    - name: Ensure slurmd spool directory exists
+      ansible.builtin.file:
+        path: "{{ slurm_state_dir_worker }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install slurmctld systemd unit on controller
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/slurmctld.service.j2"
+        dest: /etc/systemd/system/slurmctld.service
+        owner: root
+        group: root
+        mode: "0644"
+      when: slurm_node_type == "controller"
+
+    - name: Install slurmd systemd unit on worker
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/slurmd.service.j2"
+        dest: /etc/systemd/system/slurmd.service
+        owner: root
+        group: root
+        mode: "0644"
+      when: slurm_node_type == "worker"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true

@@ -12,3 +12,24 @@ slurm_version: "24.11.5"
 slurm_src_url: "https://download.schedmd.com/slurm/slurm-24.11.5.tar.bz2"
 slurm_install_prefix: "/opt/slurm"
 slurm_build_dir: "/tmp/slurm-build"
+
+munge_key_path: /etc/munge/munge.key
+munge_user: munge
+munge_group: munge
+munge_key_mode: "0400"
+
+slurm_cluster_name: ai_cluster
+slurm_controller_host: raspberry
+slurm_partition_name: debug
+
+slurm_nodes:
+  - name: jetson
+    sockets: 2
+    cores_per_socket: 3
+    threads_per_core: 1
+    memory: 6500
+
+slurm_state_dir_controller: /var/spool/slurmctld
+slurm_state_dir_worker: /var/spool/slurmd
+slurm_log_dir: /var/log/slurm
+slurm_sysconfdir: /etc/slurm

@@ -2,12 +2,12 @@
 - name: Roll back Munge key distribution
   hosts: all
   become: true
-  gather_facts: true
+  gather_facts: false
 
   pre_tasks:
-    - name: Load shared Slurm vars explicitly
+    - name: Load Slurm build vars explicitly
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../vars/slurm.yml"
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
 
     - name: Load host-specific vars explicitly
       ansible.builtin.include_vars:
@@ -20,9 +20,9 @@
           - "Rolling back Munge key on {{ inventory_hostname }}"
           - "Role: {{ node_role }}"
 
-    - name: Stop Munge service
+    - name: Stop munge service
       ansible.builtin.service:
-        name: "{{ munge_service_name }}"
+        name: munge
         state: stopped
       failed_when: false
 
@@ -31,9 +31,9 @@
         path: "{{ munge_key_path }}"
         state: absent
 
-    - name: Start Munge service again if package is still present
+    - name: Start munge service again
       ansible.builtin.service:
-        name: "{{ munge_service_name }}"
+        name: munge
         state: started
         enabled: true
       failed_when: false

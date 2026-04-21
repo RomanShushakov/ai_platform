@@ -2,55 +2,46 @@
 - name: Roll back Slurm configuration
   hosts: all
   become: true
-  gather_facts: true
+  gather_facts: false
 
   pre_tasks:
-    - name: Load shared Slurm vars explicitly
+    - name: Load Slurm build vars explicitly
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../vars/slurm.yml"
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
 
     - name: Load host-specific vars explicitly
       ansible.builtin.include_vars:
         file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
 
   tasks:
-    - name: Show Slurm config rollback target
+    - name: Show config rollback target
       ansible.builtin.debug:
         msg:
           - "Rolling back Slurm config on {{ inventory_hostname }}"
           - "Role: {{ node_role }}"
 
-    - name: Stop slurmctld
-      ansible.builtin.service:
-        name: slurmctld
-        state: stopped
-        enabled: false
-      failed_when: false
-
-    - name: Stop slurmd
-      ansible.builtin.service:
-        name: slurmd
-        state: stopped
-        enabled: false
-      failed_when: false
-
     - name: Remove slurm.conf
       ansible.builtin.file:
-        path: /etc/slurm/slurm.conf
+        path: "{{ slurm_sysconfdir }}/slurm.conf"
         state: absent
 
-    - name: Remove slurmctld spool directory
+    - name: Remove slurmctld state directory on controller
       ansible.builtin.file:
-        path: /var/spool/slurmctld
+        path: "{{ slurm_state_dir_controller }}"
         state: absent
       when: slurm_node_type == "controller"
 
     - name: Remove slurmd spool directory
       ansible.builtin.file:
-        path: /var/spool/slurmd
+        path: "{{ slurm_state_dir_worker }}"
         state: absent
 
-    - name: Show Slurm config rollback completion
+    - name: Remove Slurm log directory
+      ansible.builtin.file:
+        path: "{{ slurm_log_dir }}"
+        state: absent
+
+    - name: Show config rollback completion
       ansible.builtin.debug:
         msg:
           - "Slurm config rollback completed on {{ inventory_hostname }}"

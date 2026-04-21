@@ -1,0 +1,58 @@
+---
+- name: Roll back custom Slurm systemd units
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show systemd rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Rolling back Slurm systemd units on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Stop slurmctld if present
+      ansible.builtin.service:
+        name: slurmctld
+        state: stopped
+        enabled: false
+      failed_when: false
+      when: slurm_node_type == "controller"
+
+    - name: Stop slurmd if present
+      ansible.builtin.service:
+        name: slurmd
+        state: stopped
+        enabled: false
+      failed_when: false
+      when: slurm_node_type == "worker"
+
+    - name: Remove slurmctld systemd unit on controller
+      ansible.builtin.file:
+        path: /etc/systemd/system/slurmctld.service
+        state: absent
+      when: slurm_node_type == "controller"
+
+    - name: Remove slurmd systemd unit on worker
+      ansible.builtin.file:
+        path: /etc/systemd/system/slurmd.service
+        state: absent
+      when: slurm_node_type == "worker"
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Show systemd rollback completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm systemd unit rollback completed on {{ inventory_hostname }}"

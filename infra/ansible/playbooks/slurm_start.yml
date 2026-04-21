@@ -1,0 +1,25 @@
+---
+- name: Start Slurm services
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Start slurmctld on controller
+      ansible.builtin.service:
+        name: slurmctld
+        state: restarted
+        enabled: true
+      when: slurm_node_type == "controller"
+
+    - name: Start slurmd on worker
+      ansible.builtin.service:
+        name: slurmd
+        state: restarted
+        enabled: true
+      when: slurm_node_type == "worker"
