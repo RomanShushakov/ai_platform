@@ -1,0 +1,38 @@
+---
+- name: Deploy Slurm job examples to controller
+  hosts: slurm_controller
+  become: true
+  gather_facts: false
+
+  vars:
+    slurm_job_examples_dir: "/home/roman/workdir/slurm/job-examples"
+    slurm_owner: "roman"
+    slurm_group: "roman"
+
+  tasks:
+    - name: Show job example deployment target
+      ansible.builtin.debug:
+        msg:
+          - "Deploying Slurm job examples to {{ inventory_hostname }}"
+          - "Target dir: {{ slurm_job_examples_dir }}"
+
+    - name: Ensure Slurm job examples directory exists
+      ansible.builtin.file:
+        path: "{{ slurm_job_examples_dir }}"
+        state: directory
+        owner: "{{ slurm_owner }}"
+        group: "{{ slurm_group }}"
+        mode: "0755"
+
+    - name: Copy job examples directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../slurm/job-examples/"
+        dest: "{{ slurm_job_examples_dir }}/"
+        owner: "{{ slurm_owner }}"
+        group: "{{ slurm_group }}"
+        mode: "0755"
+
+    - name: Show deployment completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm job examples deployed to {{ slurm_job_examples_dir }}"

@@ -65,3 +65,17 @@ manual check on raspberry:
 /opt/slurm/bin/scontrol ping
 /opt/slurm/bin/sinfo
 /opt/slurm/bin/srun hostname
+
+
+Step 9:
+ansible-playbook playbooks/slurm_job_examples.yml -K
+
+ansible-playbook playbooks/slurm_job_examples_rollback.yml -K
+
+on raspberry:
+cd ~/workdir/slurm/job-examples
+/opt/slurm/bin/sbatch test.sbatch
+/opt/slurm/bin/scontrol show job XX
+
+on jetson:
+cd ~/workdir/slurm/job-examples and look for .out result files

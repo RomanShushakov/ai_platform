@@ -1,0 +1,24 @@
+---
+- name: Remove Slurm job examples from controller
+  hosts: slurm_controller
+  become: true
+  gather_facts: false
+
+  vars:
+    slurm_job_examples_dir: "/home/roman/workdir/slurm/job-examples"
+
+  tasks:
+    - name: Remove Slurm job examples directory
+      ansible.builtin.file:
+        path: "{{ slurm_job_examples_dir }}"
+        state: absent
+
+    - name: Remove Slurm job examples directory
+      ansible.builtin.file:
+        path: "{{ slurm_job_examples_dir }}"
+        state: absent
+
+    - name: Show rollback completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm job examples removed from {{ slurm_job_examples_dir }}"
