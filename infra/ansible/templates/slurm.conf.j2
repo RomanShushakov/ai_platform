@@ -21,8 +21,12 @@ SlurmdPort=6818
 ProctrackType=proctrack/linuxproc
 ReturnToService=1
 
+{% if slurm_enable_gres %}
+GresTypes={{ slurm_gres_types }}
+{% endif %}
+
 {% for node in slurm_nodes %}
-NodeName={{ node.name }} Sockets={{ node.sockets }} CoresPerSocket={{ node.cores_per_socket }} ThreadsPerCore={{ node.threads_per_core }} RealMemory={{ node.memory }} State=UNKNOWN
+NodeName={{ node.name }} Sockets={{ node.sockets }} CoresPerSocket={{ node.cores_per_socket }} ThreadsPerCore={{ node.threads_per_core }} RealMemory={{ node.memory }}{% if slurm_enable_gres %} Gres={{ node.gres }}{% endif %} State=UNKNOWN
 {% endfor %}
 
 PartitionName={{ slurm_partition_name }} Nodes=ALL Default=YES MaxTime=INFINITE State=UP

@@ -1,0 +1,29 @@
+---
+- name: Verify Slurm GPU GRES
+  hosts: slurm_controller
+  become: false
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+  tasks:
+    - name: Check sinfo
+      ansible.builtin.command: "{{ slurm_install_prefix }}/bin/sinfo"
+      register: sinfo_out
+      changed_when: false
+
+    - name: Check node details
+      ansible.builtin.command: "{{ slurm_install_prefix }}/bin/scontrol show nodes"
+      register: nodes_out
+      changed_when: false
+
+    - name: Show GRES verification summary
+      ansible.builtin.debug:
+        msg:
+          - "sinfo:"
+          - "{{ sinfo_out.stdout }}"
+          - "nodes:"
+          - "{{ nodes_out.stdout }}"

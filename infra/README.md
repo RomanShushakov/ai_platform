@@ -1,173 +1,329 @@
-# Infra Lab: Slurm + Ansible + Apptainer
+# 🖥 Infra Track: Slurm + Shared Storage + Future K3s
 
-This directory contains the infrastructure track of the AI Platform Lab.
+This directory tracks the infrastructure side of the AI platform project.
 
-The goal here is not only to build an application, but to practice how AI-related systems can be deployed, scheduled, automated, and operated across small heterogeneous hardware.
+The goal is not just to run a chatbot, but to understand how:
 
----
+- online serving
+- batch compute
+- shared storage
+- deployment platforms
 
-## Purpose
-
-The main Rust AI platform remains the application/control-plane part of the project.
-
-This `infra/` directory is for the infrastructure side:
-
-- cluster setup
-- automation
-- scheduling
-- portable runtime environments
-- later integration with the Rust platform
-
-The focus is intentionally practical and incremental.
+fit together in a small real lab.
 
 ---
 
-## Current Direction
+# 🎯 Current Infra Direction
 
-The next major phase of the project is:
+We use a split architecture:
 
-- **Slurm first**
-- **Ansible-managed setup**
-- **Apptainer later for portable job environments**
-- **k3s later, not now**
+- **Rust AI platform** = online serving/orchestration plane
+- **Slurm cluster** = offline/batch compute plane
+- **shared storage (next step: NFS)** = bridge between them
+- **future K3s** = always-on application deployment plane
+
+This lets us keep the online app simple and responsive, while moving heavier jobs into scheduled batch execution.
 
 ---
 
-## Planned Topology
+# 🧩 Roles of Each Layer
 
-### Roles
+## 1. Rust AI Platform
+
+The Rust app is the main serving layer.
+
+It handles:
+
+- chat/API requests
+- tool orchestration
+- RAG query-time retrieval
+- model backend integration
+- future admin workflows
+
+It can run:
+
+- locally
+- in Docker Compose
+- later in K3s
+
+## 2. Slurm
+
+Slurm is used for offline and heavier jobs such as:
+
+- rebuilding RAG artifacts
+- embedding/index generation
+- LoRA/QLoRA training
+- evaluation runs
+- preprocessing / conversion jobs
+
+Slurm is **not** replacing the app.  
+It is the compute backend for batch work.
+
+## 3. Shared Storage
+
+Without shared storage, job scripts and outputs live on the execution node’s local filesystem.
+
+That is acceptable for first learning steps, but inconvenient for real workflows.
+
+Shared storage will solve:
+
+- one shared job directory
+- one shared artifact directory
+- one shared model/checkpoint directory
+- outputs visible from controller and app
+
+## 4. Future K3s
+
+K3s will later run the always-on application side:
+
+- Rust host/API
+- tools server
+- maybe UI
+- possibly inference services
+
+K3s will mount shared storage so the app can read artifacts and model outputs produced by Slurm jobs.
+
+---
+
+# 🧠 Retrieval Strategy Decision
+
+For now, **JSON RAG artifacts are fully enough**.
+
+Current approach:
+
+- offline chunking
+- offline embeddings generation
+- JSON artifacts:
+  - `chunks.json`
+  - `embeddings.json`
+  - `manifest.json`
+
+Why this is enough now:
+
+- very small scale
+- easy to inspect and debug
+- simple versioning
+- no extra infrastructure required
+
+A vector database such as Qdrant may be added later, but it is **not needed yet**.
+
+Planned progression:
+
+- **now**: JSON artifact-based retrieval
+- **later**: optional Qdrant backend if online vector search becomes necessary
+
+---
+
+# 🖥 Current Hardware Topology
+
+## Nodes
 
 - **Laptop**
   - development machine
-  - Git / coding / testing
   - Ansible control node
-  - SSH client
-  - not part of the Slurm cluster for now
+  - curl / testing client
+  - future local UI access
 
 - **Raspberry Pi 4**
   - Slurm controller
-  - runs `slurmctld`
-  - cluster management node
+  - future NFS server
+  - likely future K3s server/control-plane
 
 - **Jetson Orin Nano**
-  - Slurm worker node
-  - runs `slurmd`
-  - GPU-capable compute node
+  - Slurm worker
+  - GPU execution node
+  - likely future K3s worker
 
 ---
 
-## Why this topology
+# ✅ Current Working Milestone
 
-- laptop = development
-- Raspberry Pi = controller
-- Jetson = compute node
+We successfully built and ran a minimal Slurm cluster with GPU-aware scheduling.
+
+## What works now
+
+### Slurm cluster
+- same Slurm version built from source on both nodes
+- custom install under `/opt/slurm`
+- custom systemd units
+- controller on Raspberry
+- worker on Jetson
+
+### Identity
+- explicit `munge` and `slurm` users/groups
+- matching UID/GID across nodes
+
+### Munge
+- package-based Munge installation
+- shared `munge.key`
+- successful auth
+
+### Slurm config
+- controller and worker communicate correctly
+- `scontrol ping` works
+- `sinfo` works
+- `srun hostname` runs on Jetson
+
+### GPU-aware scheduling
+- `GresTypes=gpu`
+- Jetson advertised with `Gres=gpu:1`
+- `gpu_probe_gres.sbatch` runs successfully
+- job confirms:
+  - execution on Jetson
+  - visible NVIDIA device nodes
+  - working `tegrastats`
+  - Slurm GRES request honored
 
 ---
 
-## Why Slurm First
+# ⚠ Current Limitation Discovered
 
+Batch job outputs are currently written on the execution node’s local filesystem.
+
+Example:
+
+- job submitted from Raspberry
+- job runs on Jetson
+- output file appears on Jetson local disk
+
+This is expected without shared storage.
+
+This is the main reason the next step is NFS.
+
+---
+
+# 🧪 Current Example Jobs
+
+Current job examples include:
+
+- `hostname.sbatch`
+- `sleep.sbatch`
+- `python_version.sbatch`
+- `gpu_probe.sbatch`
+- `gpu_probe_gres.sbatch`
+
+These validate:
+
+- scheduler basics
 - batch execution
-- scheduled jobs
-- GPU-aware resource management
-- HPC-style workflows
+- worker execution
+- GPU visibility
+- GRES-based GPU scheduling
 
 ---
 
-## Why Ansible
+# 🧭 Planned Architecture
 
-- repeatable setup
-- infra as code
-- less error-prone
-- production-relevant skills
+## Online path
+User request → Rust app → retrieval/tools/model backend → response
 
----
+## Offline path
+Operator or future app trigger → Slurm job → artifacts/models/logs written to shared storage → app consumes results
 
-## Why Apptainer Later
+Example future offline jobs:
 
-- portable environments
-- reproducibility
-- HPC alignment
-
----
-
-## Planned Directory Layout
-
-```text
-infra/
-  README.md
-  ansible/
-    inventory/
-    group_vars/
-    playbooks/
-    roles/
-  slurm/
-    configs/
-    job-examples/
-  apptainer/
-    definitions/
-    notes/
-  notes/
-```
+- RAG rebuild
+- embedding refresh
+- LoRA fine-tuning
+- evaluation pipeline
 
 ---
 
-## Implementation Plan
+# 🛠 Future Batch Execution Model
 
-### Phase 1 — Platform Baseline
+## RAG rebuild
+A Slurm job will later run a batch artifact generation flow, likely containerized.
 
-- Rust AI platform working
-- RAG working
-- MCP working
-- Docker + local mode working
+Possible pattern:
 
-### Phase 2 — Infra Baseline
+- input markdown/docs from shared storage
+- batch job runs indexer
+- outputs new artifact version to shared storage
+- app reloads or switches to new artifact set
 
-- define inventory
-- bootstrap playbooks
-- connectivity setup
+## LoRA / fine-tuning
+A Slurm job will later run a training container or batch environment and write:
 
-### Phase 3 — Minimal Slurm Cluster
+- adapters/checkpoints
+- logs
+- metrics
+- eval results
 
-- Pi = controller
-- Jetson = worker
-- test jobs:
-  - hostname
-  - sleep
-  - simple script
+to shared storage.
 
-### Phase 4 — GPU Experiments
-
-- partitions
-- GPU jobs
-- ML scripts
-
-### Phase 5 — Apptainer
-
-- containerized jobs
-- reproducible environments
-
-### Phase 6 — Integration
-
-- Slurm job submission from Rust platform
-- batch embeddings
-- evaluation jobs
+The app layer can later load or expose those outputs.
 
 ---
 
-## Immediate Next Goal
+# 📦 Container Direction
 
-Create:
+## Application side
+- Docker Compose now / K3s later
 
-- initial Ansible structure
-- inventory for Pi + Jetson
+## Batch side
+- likely Apptainer for Slurm jobs later
+
+This gives a realistic split:
+
+- K3s for always-on services
+- Slurm for scheduled compute jobs
 
 ---
 
-## Notes
+# 🚀 Next Roadmap
 
-- keep steps small
-- test each layer
-- prefer reproducibility
-- avoid overengineering
-- keep notes in repo
-- laptop stays outside cluster
+## 1. Freeze current Slurm/GPU milestone
+Document current state and known limitations.
+
+## 2. Install NFS
+Use Raspberry as NFS server and Jetson as NFS client.
+
+Goal:
+- shared `/home/roman/workdir` (or another chosen shared path)
+
+## 3. Re-run Slurm jobs with shared storage
+Confirm:
+- job scripts visible from both nodes
+- output files visible from Raspberry immediately
+
+## 4. Put the Rust app on K3s
+Run the always-on app stack on Raspberry/Jetson via K3s.
+
+## 5. Mount NFS into the app
+App reads:
+- RAG artifacts
+- model outputs
+- logs
+- future checkpoints
+
+## 6. Optional later step: Qdrant
+Add Qdrant only if JSON artifacts become too static or limiting.
+
+---
+
+# 🧠 Design Principles
+
+We intentionally keep scope sane.
+
+## Current principles
+- Rust remains the backbone
+- offline JSON RAG artifacts are enough
+- Slurm handles batch/offline work
+- K3s is for always-on service deployment later
+- shared storage is the bridge between the two planes
+- avoid unnecessary cloud complexity
+- prefer explicit, understandable infra steps
+- prefer Ansible-managed reproducible configuration
+
+---
+
+# 📌 Summary
+
+Current status:
+
+- Slurm cluster works
+- GPU-aware scheduling works
+- offline compute path is real
+- shared storage is the next missing piece
+- K3s is the next platform step after NFS
+- JSON RAG artifacts remain the right choice for now

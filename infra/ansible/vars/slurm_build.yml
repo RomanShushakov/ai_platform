@@ -22,14 +22,18 @@ slurm_cluster_name: ai_cluster
 slurm_controller_host: raspberry
 slurm_partition_name: debug
 
+slurm_state_dir_controller: /var/spool/slurmctld
+slurm_state_dir_worker: /var/spool/slurmd
+slurm_log_dir: /var/log/slurm
+slurm_sysconfdir: /etc/slurm
+
+slurm_enable_gres: true
+slurm_gres_types: "gpu"
+
 slurm_nodes:
   - name: jetson
     sockets: 2
     cores_per_socket: 3
     threads_per_core: 1
     memory: 6500
-
-slurm_state_dir_controller: /var/spool/slurmctld
-slurm_state_dir_worker: /var/spool/slurmd
-slurm_log_dir: /var/log/slurm
-slurm_sysconfdir: /etc/slurm
+    gres: "gpu:1"

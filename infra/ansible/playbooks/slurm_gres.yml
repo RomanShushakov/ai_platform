@@ -1,0 +1,53 @@
+---
+- name: Configure Slurm GPU GRES
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show GRES target
+      ansible.builtin.debug:
+        msg:
+          - "Configuring Slurm GRES on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Ensure Slurm config directory exists
+      ansible.builtin.file:
+        path: "{{ slurm_sysconfdir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy updated slurm.conf with GRES
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/slurm.conf.j2"
+        dest: "{{ slurm_sysconfdir }}/slurm.conf"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Deploy gres.conf on worker
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/gres.conf.j2"
+        dest: "{{ slurm_sysconfdir }}/gres.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      when: node_role == "slurm_worker"
+
+    - name: Remove gres.conf on controller
+      ansible.builtin.file:
+        path: "{{ slurm_sysconfdir }}/gres.conf"
+        state: absent
+      when: node_role == "slurm_controller"
+      failed_when: false

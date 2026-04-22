@@ -1,0 +1,58 @@
+---
+- name: Roll back Slurm GPU GRES config
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load Slurm build vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show GRES rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Rolling back Slurm GRES config on {{ inventory_hostname }}"
+          - "Role: {{ node_role }}"
+
+    - name: Remove gres.conf on worker
+      ansible.builtin.file:
+        path: "{{ slurm_sysconfdir }}/gres.conf"
+        state: absent
+      when: node_role == "slurm_worker"
+      failed_when: false
+
+    - name: Disable GRES in slurm.conf
+      ansible.builtin.replace:
+        path: "{{ slurm_sysconfdir }}/slurm.conf"
+        regexp: "^GresTypes=.*$"
+        replace: ""
+      failed_when: false
+
+    - name: Remove Gres from node lines in slurm.conf
+      ansible.builtin.replace:
+        path: "{{ slurm_sysconfdir }}/slurm.conf"
+        regexp: " Gres=[^ ]+"
+        replace: ""
+      failed_when: false
+
+    - name: Restart slurmctld on controller
+      ansible.builtin.service:
+        name: slurmctld
+        state: restarted
+        enabled: true
+      when: node_role == "slurm_controller"
+      failed_when: false
+
+    - name: Restart slurmd on worker
+      ansible.builtin.service:
+        name: slurmd
+        state: restarted
+        enabled: true
+      when: node_role == "slurm_worker"
+      failed_when: false

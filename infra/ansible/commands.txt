@@ -76,6 +76,24 @@ on raspberry:
 cd ~/workdir/slurm/job-examples
 /opt/slurm/bin/sbatch test.sbatch
 /opt/slurm/bin/scontrol show job XX
+/opt/slurm/bin/squeue
+
+on jetson:
+cd ~/workdir/slurm/job-examples and look for .out result files
+
+
+Step 10:
+ansible-playbook playbooks/slurm_gres.yml -K
+ansible-playbook playbooks/slurm_gres_restart.yml -K
+ansible-playbook playbooks/slurm_gres_verify.yml -K
+
+ansible-playbook playbooks/slurm_gres_rollback.yml -K
+
+on raspberry:
+cd ~/workdir/slurm/job-examples
+/opt/slurm/bin/sbatch gpu_probe_gres.sbatch
+/opt/slurm/bin/scontrol show job XX
+/opt/slurm/bin/squeue
 
 on jetson:
 cd ~/workdir/slurm/job-examples and look for .out result files
