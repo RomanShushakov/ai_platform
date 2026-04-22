@@ -7,7 +7,7 @@
   pre_tasks:
     - name: Load NFS vars explicitly
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../vars/nfs.yml"
+        file: "{{ playbook_dir }}/../../vars/nfs.yml"
 
   tasks:
     - name: Show NFS server rollback target

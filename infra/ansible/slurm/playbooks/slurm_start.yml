@@ -1,5 +1,5 @@
 ---
-- name: Restart Slurm services after GRES config
+- name: Start Slurm services
   hosts: all
   become: true
   gather_facts: false
@@ -7,19 +7,19 @@
   pre_tasks:
     - name: Load host-specific vars explicitly
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+        file: "{{ playbook_dir }}/../../host_vars/{{ inventory_hostname }}.yml"
 
   tasks:
-    - name: Restart slurmctld on controller
+    - name: Start slurmctld on controller
       ansible.builtin.service:
         name: slurmctld
         state: restarted
         enabled: true
-      when: node_role == "slurm_controller"
+      when: slurm_node_type == "controller"
 
-    - name: Restart slurmd on worker
+    - name: Start slurmd on worker
       ansible.builtin.service:
         name: slurmd
         state: restarted
         enabled: true
-      when: node_role == "slurm_worker"
+      when: slurm_node_type == "worker"

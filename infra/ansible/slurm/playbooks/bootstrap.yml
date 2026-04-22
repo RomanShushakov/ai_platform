@@ -7,11 +7,11 @@
   pre_tasks:
     - name: Load shared vars explicitly
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../vars/common.yml"
+        file: "{{ playbook_dir }}/../../vars/common.yml"
 
     - name: Load host-specific vars explicitly
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+        file: "{{ playbook_dir }}/../../host_vars/{{ inventory_hostname }}.yml"
 
   tasks:
     - name: Show bootstrap target

@@ -7,7 +7,7 @@
   pre_tasks:
     - name: Load Slurm build vars explicitly
       ansible.builtin.include_vars:
-        file: "{{ playbook_dir }}/../vars/slurm_build.yml"
+        file: "{{ playbook_dir }}/../../vars/slurm_build.yml"
 
   tasks:
     - name: Check munge passwd entry
