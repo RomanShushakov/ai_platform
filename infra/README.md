@@ -74,7 +74,7 @@ The Raspberry Pi will mount the same path via NFS.
 
 Planned shared path:
 
-- `/home/roman/workdir` (same path on both nodes)
+- `/home/roman/nfs` (same path on both nodes)
 
 This ensures:
 
@@ -86,10 +86,10 @@ This ensures:
 
 Shared NFS directory (Jetson):
 
-- `/home/roman/workdir/slurm` → job scripts
-- `/home/roman/workdir/rag` → RAG artifacts
-- `/home/roman/workdir/models` → LoRA/adapters/checkpoints
-- `/home/roman/workdir/logs` → job logs
+- `/home/roman/nfs/slurm` → job scripts
+- `/home/roman/nfs/rag` → RAG artifacts
+- `/home/roman/nfs/models` → LoRA/adapters/checkpoints
+- `/home/roman/nfs/logs` → job logs
 
 This directory will be mounted:
 
@@ -305,7 +305,7 @@ Document current state and known limitations.
 Use Raspberry as NFS server and Jetson as NFS client.
 
 Goal:
-- shared `/home/roman/workdir` (or another chosen shared path)
+- shared `/home/roman/nfs` (or another chosen shared path)
 
 ## 3. Re-run Slurm jobs with shared storage
 Confirm:
