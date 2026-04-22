@@ -1,14 +1,15 @@
-# 🧠 AI Platform Lab (Rust + MCP + RAG + Ollama)
+# 🧠 AI Platform Lab (Rust + MCP + RAG + Slurm + K3s)
 
-A minimal but production-structured **AI platform and infra lab** built primarily in Rust.
+A minimal but production-structured **AI platform and infrastructure lab** built primarily in Rust.
 
-This repository currently contains:
+This repository combines:
 
 - a modular Rust AI orchestration platform
 - MCP and HTTP tool integration
-- RAG with markdown and embeddings-based retrieval
-- Docker and local execution modes
-- the start of an infra-focused roadmap around Slurm, Ansible, Apptainer, and later k3s
+- RAG with markdown + embeddings-based retrieval
+- a working Slurm cluster (CPU + GPU)
+- NFS shared storage between nodes
+- a roadmap toward K3s deployment
 
 ---
 
@@ -16,24 +17,25 @@ This repository currently contains:
 
 This is not just a demo chatbot.
 
-The goal is to build and explore:
+The goal is to build:
 
-> A modular AI platform where LLM backends, retrieval backends, and tool systems are swappable,
+> A modular AI platform where LLM backends, retrieval systems, and tool providers are fully swappable
 
-while also using it as a hands-on lab for:
+while also serving as a hands-on lab for:
 
 - AI infrastructure
-- model serving and orchestration
+- model orchestration
 - retrieval pipelines
-- job scheduling
-- lightweight cluster operations
-- deployment patterns on personal hardware
+- batch compute (Slurm)
+- shared storage (NFS)
+- container orchestration (K3s)
+- deployment on real hardware
 
-Target hardware for later infra experiments:
+Target hardware:
 
-- laptop
-- Raspberry Pi 4
-- Jetson Orin Nano
+- Laptop (dev + control)
+- Raspberry Pi 4 (controller)
+- Jetson Orin Nano (GPU worker)
 
 ---
 
@@ -48,11 +50,18 @@ Rust Host (orchestrator)
         │      └── vLLM (planned)
         ├──→ Retriever
         │      ├── noop
-        │      ├── in-memory markdown retriever
-        │      └── embeddings-based retriever
+        │      ├── markdown
+        │      └── embeddings (JSON artifacts)
         └──→ ToolProvider
                ├── HTTP tools server
-               └── MCP tools server (stdio, child process)
+               └── MCP tools server
+
+Offline / Batch Plane:
+        Slurm Cluster (Raspberry → Jetson)
+                 ↓
+            NFS Storage
+                 ↓
+          App / K3s (future)
 ```
 
 ---
@@ -80,34 +89,26 @@ workspace/
 ```text
 User Input
   → Query Routing
-  → Retrieval (when needed)
+  → Retrieval (optional)
   → LLM Response
     → ToolCall?
        → Execute Tool
-       → Feed Result Back to LLM
+       → Feed Result Back
   → Final Answer
 ```
 
-## Tool Abstraction
+## Traits
 
 ```rust
 trait ToolProvider {
   async fn list_tools(...);
   async fn call_tool(...);
 }
-```
 
-## LLM Backend
-
-```rust
 trait LlmBackend {
   async fn chat(...);
 }
-```
 
-## Retrieval
-
-```rust
 trait Retriever {
   async fn retrieve(...);
 }
@@ -126,16 +127,12 @@ knowledge_base/
 
 ---
 
-# 🧩 Current RAG State
+# 🧩 RAG State
 
-- markdown knowledge base under:
-  - knowledge_base/hr
-  - knowledge_base/engineering
-  - knowledge_base/product
-- offline indexer
-- chunk generation
-- embeddings generation via Ollama
-- persisted retrieval artifacts
+- markdown-based KB
+- offline indexing
+- embeddings via Ollama
+- JSON artifacts
 
 ```text
 artifacts/rag/
@@ -144,13 +141,7 @@ artifacts/rag/
   manifest.json
 ```
 
-Retrieval modes:
-
-- noop
-- in-memory markdown lexical retriever
-- embeddings-based retriever (local JSON artifacts)
-
-No vector database yet by design.
+No vector DB (by design for now).
 
 ---
 
@@ -159,20 +150,6 @@ No vector database yet by design.
 - tool_first
 - retrieval_first
 - hybrid
-
----
-
-# 📊 Example Response
-
-```json
-{
-  "answer": "...",
-  "steps": [...],
-  "sources": [...],
-  "retrieval_confidence": 0.4,
-  "safety_notes": [...]
-}
-```
 
 ---
 
@@ -201,32 +178,12 @@ docker compose up --build
 # 🧪 Example Request
 
 ```bash
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"How do I request vacation?"}'
+curl -X POST http://localhost:3000/chat   -H "Content-Type: application/json"   -d '{"message":"How do I request vacation?"}'
 ```
 
 ---
 
-# 🔥 Achievements
-
-- clean Rust architecture
-- async orchestration loop
-- MCP integration
-- RAG with offline indexing
-- swappable system design
-
----
-
-# 🚀 Next Steps
-
-- embeddings improvements
-- vLLM backend
-- Slurm integration
-
----
-
-# 📁 Infra Layout
+# 🏗 Infra Overview
 
 ```text
 infra/
@@ -238,9 +195,93 @@ infra/
 
 ---
 
-# 🧩 Notes
+# 🖥 Current Infra State
+
+## Slurm
+
+- built from source
+- controller: Raspberry
+- worker: Jetson
+- GPU scheduling via GRES
+
+## NFS
+
+- server: Jetson
+- client: Raspberry
+- shared path:
+
+```
+/home/roman/nfs
+```
+
+## Verified
+
+- jobs run on Jetson
+- outputs visible via NFS on Raspberry
+- GPU jobs execute correctly
+
+---
+
+# 🧭 Architecture Split
+
+## Online (App)
+
+Rust → tools / RAG → response
+
+## Offline (Batch)
+
+Trigger → Slurm → NFS → app consumes
+
+---
+
+# 📦 Storage Layout
+
+```text
+/home/roman/nfs/
+├── slurm/
+├── rag/
+├── models/
+└── logs/
+```
+
+---
+
+# 🚀 Roadmap
+
+1. Slurm + GPU ✅
+2. NFS shared storage ✅
+3. K3s cluster (next)
+4. Deploy Rust app to K3s
+5. Mount NFS into pods
+6. Optional: Qdrant
+
+---
+
+# 🧠 Design Principles
+
+- separation of online vs batch
+- simple RAG first
+- real infra over mocks
+- reproducible via Ansible
+- avoid overengineering
+
+---
+
+# 🔥 Achievements
+
+- modular Rust AI platform
+- MCP integration
+- RAG pipeline
+- working Slurm cluster
+- GPU scheduling
+- shared storage (NFS)
+- real distributed execution
+
+---
+
+# 📌 Notes
 
 - MCP requires clean stdout
 - logs → stderr
-- no vector DB yet
 - no auth yet
+- no vector DB yet (intentional)
