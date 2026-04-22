@@ -1,0 +1,49 @@
+---
+- name: Roll back NFS server on Jetson
+  hosts: slurm_worker
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load NFS vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/nfs.yml"
+
+  tasks:
+    - name: Show NFS server rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Rolling back NFS server on {{ inventory_hostname }}"
+          - "Export dir: {{ nfs_export_dir }}"
+
+    - name: Clear /etc/exports entry for current export
+      ansible.builtin.copy:
+        dest: /etc/exports
+        owner: root
+        group: root
+        mode: "0644"
+        content: ""
+
+    - name: Reload exported filesystems
+      ansible.builtin.command: exportfs -ra
+      changed_when: true
+      failed_when: false
+
+    - name: Stop nfs-server service if present
+      ansible.builtin.service:
+        name: nfs-server
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Stop nfs-kernel-server service if present
+      ansible.builtin.service:
+        name: nfs-kernel-server
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Show NFS server rollback completion
+      ansible.builtin.debug:
+        msg:
+          - "NFS server rollback completed on {{ inventory_hostname }}"

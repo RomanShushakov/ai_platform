@@ -1,0 +1,36 @@
+---
+- name: Verify NFS server/client setup
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load NFS vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/nfs.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Check exports on NFS server
+      ansible.builtin.command: exportfs -v
+      register: exportfs_out
+      changed_when: false
+      failed_when: false
+      when: node_role == "slurm_worker"
+
+    - name: Check mount on NFS client
+      ansible.builtin.command: mount | grep "{{ nfs_client_mount_dir }}"
+      register: mount_out
+      changed_when: false
+      failed_when: false
+      when: node_role == "slurm_controller"
+
+    - name: Show verify output
+      ansible.builtin.debug:
+        msg:
+          - "{{ inventory_hostname }}"
+          - "exportfs={{ exportfs_out.stdout | default('n/a') }}"
+          - "mount={{ mount_out.stdout | default('n/a') }}"

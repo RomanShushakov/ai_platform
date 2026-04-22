@@ -1,0 +1,6 @@
+nfs_server_host: jetson
+nfs_export_dir: /home/roman/nfs
+nfs_client_mount_dir: /home/roman/nfs
+
+nfs_export_networks:
+  - "100.109.72.92(rw,sync,no_subtree_check,no_root_squash)"

@@ -1,0 +1,38 @@
+---
+- name: Deploy Slurm job examples to NFS shared directory
+  hosts: slurm_worker
+  become: true
+  gather_facts: false
+
+  vars:
+    slurm_job_examples_nfs_dir: "/home/roman/nfs/slurm/job-examples"
+    slurm_owner: "roman"
+    slurm_group: "roman"
+
+  tasks:
+    - name: Show NFS job example deployment target
+      ansible.builtin.debug:
+        msg:
+          - "Deploying Slurm job examples to {{ inventory_hostname }}"
+          - "Target dir: {{ slurm_job_examples_nfs_dir }}"
+
+    - name: Ensure NFS Slurm job examples directory exists
+      ansible.builtin.file:
+        path: "{{ slurm_job_examples_nfs_dir }}"
+        state: directory
+        owner: "{{ slurm_owner }}"
+        group: "{{ slurm_group }}"
+        mode: "0755"
+
+    - name: Copy NFS job examples directory
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../slurm/job-examples/"
+        dest: "{{ slurm_job_examples_nfs_dir }}/"
+        owner: "{{ slurm_owner }}"
+        group: "{{ slurm_group }}"
+        mode: "0755"
+
+    - name: Show NFS deployment completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm job examples deployed to {{ slurm_job_examples_nfs_dir }}"

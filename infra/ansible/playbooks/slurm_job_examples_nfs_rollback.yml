@@ -1,0 +1,25 @@
+---
+- name: Remove Slurm job examples from NFS shared directory
+  hosts: slurm_worker
+  become: true
+  gather_facts: false
+
+  vars:
+    slurm_job_examples_nfs_dir: "/home/roman/nfs/slurm/job-examples"
+
+  tasks:
+    - name: Show NFS job examples rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Removing Slurm job examples from {{ inventory_hostname }}"
+          - "Target dir: {{ slurm_job_examples_nfs_dir }}"
+
+    - name: Remove NFS Slurm job examples directory
+      ansible.builtin.file:
+        path: "{{ slurm_job_examples_nfs_dir }}"
+        state: absent
+
+    - name: Show rollback completion
+      ansible.builtin.debug:
+        msg:
+          - "Slurm job examples removed from {{ slurm_job_examples_nfs_dir }}"

@@ -1,0 +1,29 @@
+---
+- name: Roll back NFS client on Raspberry
+  hosts: slurm_controller
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load NFS vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/nfs.yml"
+
+  tasks:
+    - name: Show NFS client rollback target
+      ansible.builtin.debug:
+        msg:
+          - "Rolling back NFS client on {{ inventory_hostname }}"
+          - "Mount dir: {{ nfs_client_mount_dir }}"
+
+    - name: Unmount NFS mount and remove fstab entry
+      ansible.builtin.mount:
+        src: "{{ nfs_server_host }}:{{ nfs_export_dir }}"
+        path: "{{ nfs_client_mount_dir }}"
+        fstype: nfs
+        state: absent
+
+    - name: Show NFS client rollback completion
+      ansible.builtin.debug:
+        msg:
+          - "NFS client rollback completed on {{ inventory_hostname }}"

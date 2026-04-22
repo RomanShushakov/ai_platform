@@ -97,3 +97,42 @@ cd ~/workdir/slurm/job-examples
 
 on jetson:
 cd ~/workdir/slurm/job-examples and look for .out result files
+
+
+Step 11:
+ansible-playbook playbooks/nfs_server.yml -K
+ansible-playbook playbooks/nfs_client.yml -K
+ansible-playbook playbooks/nfs_verify.yml -K
+
+ansible-playbook playbooks/nfs_client_rollback.yml -K
+ansible-playbook playbooks/nfs_server_rollback.yml -K
+
+on rapsberry:
+mount | grep /home/roman/nfs
+touch /home/roman/nfs/nfs-test-from-raspberry.txt
+ls -l /home/roman/nfs
+
+on jetson:
+ls -l /home/roman/nfs
+cat /home/roman/nfs/nfs-test-from-raspberry.txt
+
+then rerun jobs on raspberry:
+cd ~/nfs/slurm/job-examples
+/opt/slurm/bin/sbatch hostname.sbatch
+sleep 2
+ls -la ~/nfs/slurm/job-examples
+cat ~/nfs/slurm/job-examples/slurm-*.out
+
+
+Step 12:
+ansible-playbook playbooks/slurm_job_examples_nfs.yml -K
+
+ansible-playbook playbooks/slurm_job_examples_nfs_rollback.yml -K
+
+on raspberry:
+cd ~/nfs/slurm/job-examples
+ls
+/opt/slurm/bin/sbatch hostname.sbatch
+sleep 2
+ls -la
+cat slurm-*.out

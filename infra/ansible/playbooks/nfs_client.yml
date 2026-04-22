@@ -1,0 +1,49 @@
+---
+- name: Configure NFS client on Raspberry
+  hosts: slurm_controller
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load NFS vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/nfs.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Show NFS client target
+      ansible.builtin.debug:
+        msg:
+          - "Configuring NFS client on {{ inventory_hostname }}"
+          - "Mounting {{ nfs_server_host }}:{{ nfs_export_dir }} to {{
+            nfs_client_mount_dir }}"
+
+    - name: Install NFS client package
+      ansible.builtin.apt:
+        name: nfs-common
+        state: present
+        update_cache: true
+
+    - name: Ensure mount directory exists
+      ansible.builtin.file:
+        path: "{{ nfs_client_mount_dir }}"
+        state: directory
+        owner: roman
+        group: roman
+        mode: "0755"
+
+    - name: Ensure NFS mount entry exists in fstab
+      ansible.builtin.mount:
+        src: "{{ nfs_server_host }}:{{ nfs_export_dir }}"
+        path: "{{ nfs_client_mount_dir }}"
+        fstype: nfs
+        opts: rw,sync,hard
+        state: mounted
+
+    - name: Show NFS client completion
+      ansible.builtin.debug:
+        msg:
+          - "NFS client configured on {{ inventory_hostname }}"
