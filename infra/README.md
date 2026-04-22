@@ -59,18 +59,43 @@ Slurm is used for offline and heavier jobs such as:
 Slurm is **not** replacing the app.  
 It is the compute backend for batch work.
 
-## 3. Shared Storage
+## 3. Shared Storage (Jetson-based NFS)
 
-Without shared storage, job scripts and outputs live on the execution node’s local filesystem.
+Shared storage will be provided by the Jetson node via NFS.
 
-That is acceptable for first learning steps, but inconvenient for real workflows.
+Rationale:
 
-Shared storage will solve:
+- Jetson has significantly larger disk (256GB vs 64GB on Raspberry)
+- Slurm jobs execute on Jetson, so writes stay local (better performance)
+- avoids network write bottlenecks
+- more realistic small-lab architecture
 
-- one shared job directory
-- one shared artifact directory
-- one shared model/checkpoint directory
-- outputs visible from controller and app
+The Raspberry Pi will mount the same path via NFS.
+
+Planned shared path:
+
+- `/home/roman/workdir` (same path on both nodes)
+
+This ensures:
+
+- identical paths across cluster
+- no path translation in Slurm jobs
+- easy integration with Docker/K3s later
+
+# 📦 Storage Layout (Planned)
+
+Shared NFS directory (Jetson):
+
+- `/home/roman/workdir/slurm` → job scripts
+- `/home/roman/workdir/rag` → RAG artifacts
+- `/home/roman/workdir/models` → LoRA/adapters/checkpoints
+- `/home/roman/workdir/logs` → job logs
+
+This directory will be mounted:
+
+- on Raspberry (Slurm controller)
+- later into Docker containers
+- later into K3s pods
 
 ## 4. Future K3s
 
@@ -126,12 +151,13 @@ Planned progression:
 
 - **Raspberry Pi 4**
   - Slurm controller
-  - future NFS server
+  - NFS client
   - likely future K3s server/control-plane
 
 - **Jetson Orin Nano**
   - Slurm worker
   - GPU execution node
+  - NFS server (shared storage)
   - likely future K3s worker
 
 ---
