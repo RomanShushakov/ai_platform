@@ -1,0 +1,53 @@
+---
+- name: Install K3s agent on Jetson
+  hosts: slurm_worker
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Load K3s vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/k3s.yml"
+
+    - name: Load host-specific vars explicitly
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../host_vars/{{ inventory_hostname }}.yml"
+
+    - name: Read K3s node token from server
+      ansible.builtin.slurp:
+        src: "{{ k3s_cluster_token_file }}"
+      delegate_to: "{{ k3s_server_host }}"
+      run_once: true
+      register: k3s_token_blob
+
+    - name: Set K3s token fact
+      ansible.builtin.set_fact:
+        k3s_cluster_token: "{{ k3s_token_blob.content | b64decode | trim }}"
+
+  tasks:
+    - name: Show K3s agent target
+      ansible.builtin.debug:
+        msg:
+          - "Installing K3s agent on {{ inventory_hostname }}"
+          - "Server URL: {{ k3s_server_url }}"
+
+    - name: Install K3s agent
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | \
+          K3S_URL="{{ k3s_server_url }}" \
+          K3S_TOKEN="{{ k3s_cluster_token }}" \
+          INSTALL_K3S_EXEC="agent" \
+          sh -
+      args:
+        creates: /usr/local/bin/k3s-agent
+
+    - name: Ensure k3s-agent service is enabled and started
+      ansible.builtin.service:
+        name: k3s-agent
+        enabled: true
+        state: started
+
+    - name: Show K3s agent completion
+      ansible.builtin.debug:
+        msg:
+          - "K3s agent installed on {{ inventory_hostname }}"

@@ -1,0 +1,11 @@
+---
+- name: Roll back K3s server on Raspberry
+  hosts: slurm_controller
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Run K3s server uninstall if present
+      ansible.builtin.shell: /usr/local/bin/k3s-uninstall.sh
+      failed_when: false
+      changed_when: true

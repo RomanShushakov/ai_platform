@@ -1,0 +1,11 @@
+---
+- name: Roll back K3s agent on Jetson
+  hosts: slurm_worker
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Run K3s agent uninstall if present
+      ansible.builtin.shell: /usr/local/bin/k3s-agent-uninstall.sh
+      failed_when: false
+      changed_when: true

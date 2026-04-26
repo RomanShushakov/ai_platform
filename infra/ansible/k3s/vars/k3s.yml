@@ -1,0 +1,8 @@
+k3s_server_host: raspberry
+k3s_server_url: "https://raspberry:6443"
+k3s_cluster_token_file: /var/lib/rancher/k3s/server/node-token
+
+k3s_node_name_server: raspberry
+k3s_node_name_agent: jetson
+
+k3s_kubeconfig_path: /etc/rancher/k3s/k3s.yaml

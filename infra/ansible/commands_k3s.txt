@@ -1,0 +1,71 @@
+Step 1:
+ansible-playbook k3s/playbooks/k3s_server.yml -K
+
+on raspberry:
+sudo cp /boot/firmware/cmdline.txt /boot/firmware/cmdline.txt.bak
+sudo vi /boot/firmware/cmdline.txt
+and add to same single line, at the end:
+cgroup_memory=1 cgroup_enable=memory
+then:
+sudo reboot
+then:
+sudo systemctl restart k3s
+sudo systemctl status k3s
+
+ansible-playbook k3s/playbooks/k3s_agent.yml -K
+ansible-playbook k3s/playbooks/k3s_verify.yml -K
+
+ansible-playbook k3s/playbooks/k3s_agent_rollback.yml -K
+ansible-playbook k3s/playbooks/k3s_server_rollback.yml -K
+
+on raspberry:
+kubectl get nodes -o wide
+
+
+Step 2:
+kubectl create deployment hello-k3s --image=nginx:alpine
+kubectl expose deployment hello-k3s --type=NodePort --port=80
+kubectl get svc hello-k3s
+kubectl get pods -o wide
+
+
+Step 3:
+on raspberry:
+cat <<'EOF' > nfs-test-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nfs-test
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: jetson
+  containers:
+    - name: shell
+      image: alpine:latest
+      command: ["sleep", "3600"]
+      volumeMounts:
+        - name: nfs-data
+          mountPath: /mnt/nfs
+  volumes:
+    - name: nfs-data
+      hostPath:
+        path: /home/roman/nfs
+        type: Directory
+EOF
+
+kubectl apply -f nfs-test-pod.yaml
+kubectl get pod nfs-test -o wide
+
+kubectl exec -it nfs-test -- sh
+
+then inside pod:
+ls -la /mnt/nfs
+ls -la /mnt/nfs/slurm/job-examples
+echo hello-from-k3s-pod > /mnt/nfs/k3s-test.txt
+exit
+
+then on raspberry:
+cat ~/nfs/k3s-test.txt
+
+then on jetson:
+cat ~/nfs/k3s-test.txt
