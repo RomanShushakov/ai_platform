@@ -69,3 +69,8 @@ cat ~/nfs/k3s-test.txt
 
 then on jetson:
 cat ~/nfs/k3s-test.txt
+
+then on raspberry:
+kubectl delete pod nfs-test
+kubectl delete service hello-k3s
+kubectl delete deployment hello-k3s
