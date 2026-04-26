@@ -1,0 +1,28 @@
+---
+- name: Remove K3s registry config
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load host vars
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Remove registries.yaml
+      ansible.builtin.file:
+        path: /etc/rancher/k3s/registries.yaml
+        state: absent
+
+    - name: Restart K3s server
+      ansible.builtin.service:
+        name: k3s
+        state: restarted
+      when: node_role == "slurm_controller"
+
+    - name: Restart K3s agent
+      ansible.builtin.service:
+        name: k3s-agent
+        state: restarted
+      when: node_role == "slurm_worker"

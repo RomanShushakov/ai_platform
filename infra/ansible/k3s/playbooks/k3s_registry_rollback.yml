@@ -1,0 +1,13 @@
+---
+- name: Roll back local registry on Jetson
+  hosts: slurm_worker
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Stop and disable registry
+      ansible.builtin.service:
+        name: docker-registry
+        state: stopped
+        enabled: false
+      failed_when: false

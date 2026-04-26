@@ -1,0 +1,47 @@
+---
+- name: Configure K3s nodes to use local registry
+  hosts: all
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load registry vars
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/registry.yml"
+
+    - name: Load host vars
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../../host_vars/{{ inventory_hostname }}.yml"
+
+  tasks:
+    - name: Ensure K3s config directory exists
+      ansible.builtin.file:
+        path: /etc/rancher/k3s
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Deploy registries.yaml
+      ansible.builtin.copy:
+        dest: "{{ k3s_registries_config_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          mirrors:
+            "{{ k3s_registry_name }}":
+              endpoint:
+                - "http://{{ k3s_registry_name }}"
+
+    - name: Restart K3s server
+      ansible.builtin.service:
+        name: k3s
+        state: restarted
+      when: node_role == "slurm_controller"
+
+    - name: Restart K3s agent
+      ansible.builtin.service:
+        name: k3s-agent
+        state: restarted
+      when: node_role == "slurm_worker"

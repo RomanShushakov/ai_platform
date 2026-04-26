@@ -1,0 +1,44 @@
+---
+- name: Run local container registry on Jetson
+  hosts: slurm_worker
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Load registry vars
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/../vars/registry.yml"
+
+  tasks:
+    - name: Install Docker registry package
+      ansible.builtin.apt:
+        name: docker-registry
+        state: present
+        update_cache: true
+
+    - name: Deploy unauthenticated local registry config
+      ansible.builtin.copy:
+        dest: /etc/docker/registry/config.yml
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          version: 0.1
+          log:
+            fields:
+              service: registry
+          storage:
+            cache:
+              blobdescriptor: inmemory
+            filesystem:
+              rootdirectory: /var/lib/docker-registry
+          http:
+            addr: :5000
+            headers:
+              X-Content-Type-Options: [nosniff]
+
+    - name: Enable and restart registry
+      ansible.builtin.service:
+        name: docker-registry
+        enabled: true
+        state: restarted

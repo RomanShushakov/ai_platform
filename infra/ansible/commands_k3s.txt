@@ -74,3 +74,12 @@ then on raspberry:
 kubectl delete pod nfs-test
 kubectl delete service hello-k3s
 kubectl delete deployment hello-k3s
+
+
+Step 4:
+ansible-playbook k3s/playbooks/k3s_registry.yml -K
+ansible-playbook k3s/playbooks/k3s_registries_config.yml -K
+ansible-playbook k3s/playbooks/k3s_registry_verify.yml -K
+
+ansible-playbook k3s/playbooks/k3s_registry_rollback.yml -K
+ansible-playbook k3s/playbooks/k3s_registries_config_rollback.yml -K
