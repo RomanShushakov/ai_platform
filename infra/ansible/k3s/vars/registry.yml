@@ -1,5 +1,10 @@
 k3s_registry_host: jetson
-k3s_registry_ip: "100.90.183.16"
+
+# k3s_registry_ip: "100.90.183.16"
+# k3s_registry_port: 5000
+
+k3s_registry_ip: "192.168.178.103"
 k3s_registry_port: 5000
+
 k3s_registry_name: "{{ k3s_registry_ip }}:{{ k3s_registry_port }}"
 k3s_registries_config_path: /etc/rancher/k3s/registries.yaml

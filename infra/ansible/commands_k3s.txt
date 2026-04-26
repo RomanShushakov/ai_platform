@@ -83,3 +83,26 @@ ansible-playbook k3s/playbooks/k3s_registry_verify.yml -K
 
 ansible-playbook k3s/playbooks/k3s_registry_rollback.yml -K
 ansible-playbook k3s/playbooks/k3s_registries_config_rollback.yml -K
+
+
+Step 5:
+docker pull nginx:alpine
+docker tag nginx:alpine 100.90.183.16:5000/nginx-test:latest
+docker push 100.90.183.16:5000/nginx-test:latest
+
+need to use jetson lan ip address:
+docker tag nginx:alpine 192.168.178.103:5000/nginx-test:latest
+docker push 192.168.178.103:5000/nginx-test:latest
+
+
+Step 6:
+on raspberry:
+kubectl create deployment registry-test \
+  --image=192.168.178.103:5000/nginx-test:latest
+
+kubectl expose deployment registry-test \
+  --type=NodePort \
+  --port=80
+
+kubectl get pods -o wide
+kubectl get svc registry-test
