@@ -1,4 +1,4 @@
-# 🖥 Infra Track: Slurm + Shared Storage + Future K3s
+# 🖥 Infra Track: Slurm + NFS + K3s (Full Lab)
 
 This directory tracks the infrastructure side of the AI platform project.
 
@@ -7,76 +7,113 @@ The goal is not just to run a chatbot, but to understand how:
 - online serving
 - batch compute
 - shared storage
-- deployment platforms
+- container orchestration
 
-fit together in a small real lab.
-
----
-
-# 🎯 Current Infra Direction
-
-We use a split architecture:
-
-- **Rust AI platform** = online serving/orchestration plane
-- **Slurm cluster** = offline/batch compute plane
-- **shared storage (NFS)** = bridge between them
-- **future K3s** = always-on application deployment plane
-
-This separation keeps the online app responsive while delegating heavy work to scheduled batch jobs.
+fit together in a real, minimal lab environment.
 
 ---
 
-# 🧩 Roles of Each Layer
+# 🎯 Architecture Overview
 
-## 1. Rust AI Platform
+```text
+           ┌───────────────┐
+           │   Laptop      │
+           │ curl / dev    │
+           └──────┬────────┘
+                  │
+                  ▼
+        ┌─────────────────────┐
+        │      K3s Cluster    │
+        │ (Raspberry + Jetson)│
+        └────────┬────────────┘
+                 │
+     ┌───────────┼──────────────┐
+     ▼                           ▼
+┌──────────────┐         ┌──────────────┐
+│ Rust Host    │         │   Ollama     │
+│ (API + MCP)  │         │ (LLM + Embed)│
+└──────┬───────┘         └──────┬───────┘
+       │                        │
+       ▼                        ▼
+        ┌─────────────────────┐
+        │     NFS Storage     │
+        │ (Jetson /home/nfs)  │
+        └────────┬────────────┘
+                 │
+                 ▼
+           ┌───────────────┐
+           │    Slurm      │
+           │ Batch Jobs    │
+           └───────────────┘
+```
+
+---
+
+# 🧩 Architecture Layers
+
+## 1. Serving Plane (Rust AI Platform)
 
 Handles:
 
-- chat/API requests
-- orchestration and tools
-- RAG query-time retrieval
-- model backend integration
+- chat API
+- tool orchestration (MCP / HTTP)
+- retrieval (RAG)
+- LLM interaction
 
-Runs:
-
-- locally
-- Docker Compose
-- later in K3s
+Runs inside K3s.
 
 ---
 
-## 2. Slurm (Batch Plane)
+## 2. Batch Plane (Slurm)
 
 Handles:
 
-- RAG rebuilds
-- embeddings generation
-- LoRA / QLoRA training
-- evaluation jobs
+- RAG artifact generation
+- embedding jobs
+- training (future)
 - preprocessing
 
-Slurm = **offline compute engine**
+Runs on Jetson (GPU capable).
 
 ---
 
-## 3. Shared Storage (Jetson-based NFS)
+## 3. Storage Plane (NFS)
 
-### Setup
-
-- Server: Jetson
-- Client: Raspberry
-- Shared path:
+Shared directory:
 
 ```
 /home/roman/nfs
 ```
 
-### Why Jetson as NFS server
+Used for:
 
-- larger disk (256GB)
-- jobs execute locally on Jetson
-- avoids network write overhead
-- realistic infra design
+- RAG artifacts
+- job outputs
+- models
+- logs
+
+Mounted:
+
+```
+/mnt/nfs
+```
+
+inside K3s pods.
+
+---
+
+## 4. Orchestration Plane (K3s)
+
+Cluster:
+
+- Raspberry → control-plane
+- Jetson → worker
+
+Runs:
+
+- Rust host
+- Ollama
+- future services
 
 ---
 
@@ -87,32 +124,83 @@ Slurm = **offline compute engine**
 ├── slurm/
 │   └── job-examples/
 ├── rag/
+│   └── artifacts/
+│       ├── chunks.json
+│       ├── embeddings.json
+│       └── manifest.json
 ├── models/
 └── logs/
 ```
 
-Used for:
+---
 
-- job scripts
-- outputs
-- artifacts
-- checkpoints
+# 🔥 End-to-End Data Flow
+
+## Online Flow
+
+```text
+User Request
+   ↓
+K3s Service (NodePort)
+   ↓
+Rust Host Pod
+   ↓
+Retriever (JSON artifacts from NFS)
+   ↓
+Ollama (LLM + embeddings)
+   ↓
+Final Response
+```
 
 ---
 
-## 4. Future K3s
+## Offline Flow
 
-K3s will host:
+```text
+Trigger (manual / future API)
+   ↓
+Slurm Job
+   ↓
+RAG Indexer
+   ↓
+Artifacts written to NFS
+   ↓
+K3s App reads updated artifacts
+```
 
-- Rust API
-- tools server
-- UI (later)
+---
 
-It will mount NFS to access:
+# ✅ Current Working State
 
-- RAG artifacts
-- model outputs
-- logs
+- Slurm cluster ✔
+- GPU scheduling ✔
+- NFS shared storage ✔
+- K3s cluster ✔
+- Ollama deployed ✔
+- Rust app deployed ✔
+- MCP tools loaded ✔
+- RAG working from NFS ✔
+
+---
+
+# ⚠️ Known Limitations
+
+## Tool usage (MCP)
+
+- tools load correctly
+- LLM does not reliably call tools
+
+Observed issues:
+
+- direct answering
+- invalid JSON (markdown wrapping)
+- hallucinated tool calls
+
+Planned solution:
+
+- tool forcing
+- retry loop
+- stricter JSON parsing
 
 ---
 
@@ -121,155 +209,80 @@ It will mount NFS to access:
 Current:
 
 - JSON artifacts
-  - chunks.json
-  - embeddings.json
-  - manifest.json
+- embeddings via Ollama
 
-Why:
+Advantages:
 
 - simple
 - debuggable
-- no extra infra
+- minimal infra
 
-Future (optional):
+Future:
 
-- Qdrant if needed
+- optional vector DB (Qdrant)
 
 ---
 
 # 🖥 Hardware Topology
 
-Laptop:
-- dev
-- ansible
-- client
+## Laptop
+- development
+- Ansible
+- curl client
 
-Raspberry:
+## Raspberry
 - Slurm controller
+- K3s control-plane
 - NFS client
-- future K3s control plane
 
-Jetson:
+## Jetson
 - Slurm worker
 - GPU node
 - NFS server
-- future K3s worker
+- K3s worker
 
 ---
 
-# ✅ Current Working Milestone
+# 🚀 Roadmap
 
-Fully working:
+## Completed
 
-- Slurm cluster
-- GPU scheduling (GRES)
-- NFS shared storage
-- distributed job execution
+- Slurm + GPU
+- NFS setup
+- K3s cluster
+- app deployment
+- RAG integration
 
----
+## Next
 
-## Verified Behavior
-
-- jobs submitted from Raspberry
-- executed on Jetson
-- outputs written to NFS
-- results visible instantly from Raspberry
-
-Example:
-
-```
-hostname → jetson
-output → /home/roman/nfs/slurm/job-examples/slurm-XX.out
-```
-
----
-
-# 🧪 Example Jobs
-
-## Local (non-NFS)
-```
-~/workdir/slurm/job-examples
-```
-
-## Shared (NFS)
-```
-~/nfs/slurm/job-examples
-```
-
-Includes:
-
-- hostname.sbatch
-- sleep.sbatch
-- python_version.sbatch
-- gpu_probe.sbatch
-- gpu_probe_gres.sbatch
-
----
-
-# 🧭 Architecture Flow
-
-## Online
-
-User → Rust app → tools/RAG/model → response
-
-## Offline
-
-Trigger → Slurm → NFS → app consumes
-
----
-
-# 🛠 Batch Model
-
-## RAG rebuild
-
-- Slurm job processes docs
-- writes artifacts to `/nfs/rag`
-- app reads them
-
-## Training
-
-- Slurm job runs training
-- writes checkpoints/logs to `/nfs/models`
-
----
-
-# 📦 Container Strategy
-
-- app → Docker / K3s
-- batch → Slurm (+ future Apptainer)
-
----
-
-# 🚀 Next Roadmap
-
-1. Slurm + NFS ✅
-2. K3s cluster setup
-3. Deploy Rust app
-4. Mount NFS into pods
-5. Connect batch → app
-6. Optional: Qdrant
+- Slurm-based RAG rebuild
+- automate pipelines
+- improve tool usage
+- add UI
+- experiment with vLLM
 
 ---
 
 # 🧠 Design Principles
 
-- keep it simple
-- separate online/offline
-- shared storage as bridge
-- reproducible via Ansible
-- avoid overengineering
+- separate online/offline workloads
+- keep system observable
+- prefer simple formats first
+- avoid unnecessary complexity
+- build incrementally
 
 ---
 
 # 📌 Summary
 
-You now have:
+You now have a fully working **mini AI infrastructure platform**:
 
-- working Slurm cluster
-- GPU scheduling
+- distributed compute (Slurm)
 - shared storage (NFS)
-- real batch pipeline
+- container orchestration (K3s)
+- model serving (Ollama)
+- RAG pipeline (end-to-end)
 
-Next step:
+Next milestone:
 
-👉 **K3s (deployment layer)**
+👉 Slurm-driven automated RAG pipeline

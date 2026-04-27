@@ -9,7 +9,7 @@ This repository combines:
 - RAG with markdown + embeddings-based retrieval
 - a working Slurm cluster (CPU + GPU)
 - NFS shared storage between nodes
-- a roadmap toward K3s deployment
+- a working K3s cluster for deployment
 
 ---
 
@@ -34,8 +34,8 @@ while also serving as a hands-on lab for:
 Target hardware:
 
 - Laptop (dev + control)
-- Raspberry Pi 4 (controller)
-- Jetson Orin Nano (GPU worker)
+- Raspberry Pi 4 (controller + K3s control plane)
+- Jetson Orin Nano (GPU worker + K3s worker)
 
 ---
 
@@ -44,24 +44,19 @@ Target hardware:
 ```text
 Client (curl / UI)
         ↓
+K3s (Raspberry + Jetson)
+        ↓
 Rust Host (orchestrator)
-        ├──→ LLM Backend
-        │      ├── Ollama
-        │      └── vLLM (planned)
-        ├──→ Retriever
-        │      ├── noop
-        │      ├── markdown
-        │      └── embeddings (JSON artifacts)
-        └──→ ToolProvider
-               ├── HTTP tools server
-               └── MCP tools server
+        ├──→ LLM Backend (Ollama)
+        ├──→ Retriever (JSON artifacts from NFS)
+        └──→ MCP Tool Server (embedded)
 
-Offline / Batch Plane:
-        Slurm Cluster (Raspberry → Jetson)
-                 ↓
+Offline Plane:
+        Slurm (Raspberry → Jetson)
+                ↓
             NFS Storage
-                 ↓
-          App / K3s (future)
+                ↓
+        App reads results
 ```
 
 ---
@@ -97,39 +92,11 @@ User Input
   → Final Answer
 ```
 
-## Traits
-
-```rust
-trait ToolProvider {
-  async fn list_tools(...);
-  async fn call_tool(...);
-}
-
-trait LlmBackend {
-  async fn chat(...);
-}
-
-trait Retriever {
-  async fn retrieve(...);
-}
-```
-
----
-
-# 📚 Knowledge Base
-
-```text
-knowledge_base/
-  hr/
-  engineering/
-  product/
-```
-
 ---
 
 # 🧩 RAG State
 
-- markdown-based KB
+- markdown knowledge base
 - offline indexing
 - embeddings via Ollama
 - JSON artifacts
@@ -141,45 +108,7 @@ artifacts/rag/
   manifest.json
 ```
 
-No vector DB (by design for now).
-
----
-
-# 🔀 Query Routing
-
-- tool_first
-- retrieval_first
-- hybrid
-
----
-
-# ⚙️ Configuration
-
-```env
-TOOL_PROVIDER=mcp | http
-LLM_BACKEND=ollama | vllm
-RETRIEVAL_BACKEND=noop | inmemory_markdown | embeddings
-```
-
----
-
-# ▶️ Run
-
-```bash
-cargo run -p host
-```
-
-```bash
-docker compose up --build
-```
-
----
-
-# 🧪 Example Request
-
-```bash
-curl -X POST http://localhost:3000/chat   -H "Content-Type: application/json"   -d '{"message":"How do I request vacation?"}'
-```
+✔ No vector DB (intentional)
 
 ---
 
@@ -189,7 +118,7 @@ curl -X POST http://localhost:3000/chat   -H "Content-Type: application/json"   
 infra/
   ansible/
   slurm/
-  apptainer/
+  k3s/
   notes/
 ```
 
@@ -198,14 +127,11 @@ infra/
 # 🖥 Current Infra State
 
 ## Slurm
-
-- built from source
 - controller: Raspberry
 - worker: Jetson
-- GPU scheduling via GRES
+- GPU scheduling (GRES)
 
 ## NFS
-
 - server: Jetson
 - client: Raspberry
 - shared path:
@@ -214,23 +140,10 @@ infra/
 /home/roman/nfs
 ```
 
-## Verified
-
-- jobs run on Jetson
-- outputs visible via NFS on Raspberry
-- GPU jobs execute correctly
-
----
-
-# 🧭 Architecture Split
-
-## Online (App)
-
-Rust → tools / RAG → response
-
-## Offline (Batch)
-
-Trigger → Slurm → NFS → app consumes
+## K3s
+- Raspberry = control-plane
+- Jetson = worker
+- workloads distributed across nodes
 
 ---
 
@@ -246,42 +159,72 @@ Trigger → Slurm → NFS → app consumes
 
 ---
 
+# 🔥 What Works End-to-End
+
+✔ Slurm jobs run on Jetson  
+✔ Outputs visible via NFS  
+✔ K3s runs distributed pods  
+✔ Rust app deployed in cluster  
+✔ Ollama running in cluster  
+✔ RAG working from NFS  
+
+---
+
+# 🧭 Architecture Split
+
+## Online (Serving)
+
+User → K3s → Rust → RAG / Tools / LLM → response
+
+## Offline (Batch)
+
+Trigger → Slurm → NFS → app consumes results
+
+---
+
 # 🚀 Roadmap
 
-1. Slurm + GPU ✅
-2. NFS shared storage ✅
-3. K3s cluster (next)
-4. Deploy Rust app to K3s
-5. Mount NFS into pods
-6. Optional: Qdrant
+## Done
+
+- Slurm cluster ✔
+- GPU scheduling ✔
+- NFS ✔
+- K3s cluster ✔
+- Rust app deployed ✔
+- Ollama integrated ✔
+- RAG working ✔
+
+## Next
+
+- Slurm-based RAG rebuild jobs
+- automate pipelines
+- improve tool usage (tool forcing)
+- split services (indexer, training)
+- add UI
+- experiment with vLLM
 
 ---
 
 # 🧠 Design Principles
 
-- separation of online vs batch
+- separate online vs offline
 - simple RAG first
 - real infra over mocks
 - reproducible via Ansible
-- avoid overengineering
+- incremental complexity
 
 ---
 
-# 🔥 Achievements
+# 📌 Summary
 
-- modular Rust AI platform
-- MCP integration
-- RAG pipeline
-- working Slurm cluster
-- GPU scheduling
+You now have a fully working **mini AI platform + infra lab**:
+
+- distributed compute (Slurm)
 - shared storage (NFS)
-- real distributed execution
+- orchestration (K3s)
+- model serving (Ollama)
+- RAG pipeline (JSON artifacts)
 
----
+Next step:
 
-# 📌 Notes
-
-- MCP requires clean stdout
-- logs → stderr
-- no auth yet
-- no vector DB yet (intentional)
+👉 automate batch pipelines via Slurm
