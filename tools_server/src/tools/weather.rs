@@ -7,7 +7,7 @@ pub fn definition() -> ToolDefinition {
         name: "get_weather".to_string(),
         description:
             "Get current weather for a city. Use this when the user asks about weather or \
-        temperature in a location."
+            temperature in a location."
                 .to_string(),
         input_schema: json!({
             "type": "object",
