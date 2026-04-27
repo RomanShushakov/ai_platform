@@ -7,7 +7,7 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:
-      test: ["CMD", "ollama", "list"]
+      test: [ "CMD", "ollama", "list" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -31,7 +31,7 @@ services:
       LLM_CHAT_PATH: "${LLM_CHAT_PATH:-/api/chat}"
       LLM_MODEL: "${LLM_MODEL:-llama3}"
 
-      RETRIEVAL_BACKEND: "${RETRIEVAL_BACKEND:-embeddings_local}" # options: noop, inmemory_markdown, inmemory_markdown
+      RETRIEVAL_BACKEND: "${RETRIEVAL_BACKEND:-embeddings_local}" # options: noop, inmemory_markdown, embeddings_local
       RETRIEVAL_TOP_K: "${RETRIEVAL_TOP_K:-4}"
       KNOWLEDGE_BASE_PATH: "${KNOWLEDGE_BASE_PATH:-/app/knowledge_base}"
 
@@ -54,7 +54,7 @@ services:
       - "3000:3000"
 
   tools-server:
-    profiles: ["http-tools"]
+    profiles: [ "http-tools" ]
     build:
       context: .
       dockerfile: tools_server/dockerfile
