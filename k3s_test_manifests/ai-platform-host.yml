@@ -38,7 +38,7 @@ spec:
             - name: LLM_CHAT_PATH
               value: "/api/chat"
             - name: LLM_MODEL
-              value: "llama3"
+              value: "llama3.2:1b"
             - name: RETRIEVAL_BACKEND
               value: "noop"
           volumeMounts:

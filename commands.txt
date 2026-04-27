@@ -127,6 +127,10 @@ kubectl exec -n ai-platform deployment/ollama -- ollama rm tinyllama
 
 kubectl exec -n ai-platform deployment/ollama -- ollama pull llama3
 kubectl exec -n ai-platform deployment/ollama -- ollama list
+kubectl exec -n ai-platform deployment/ollama -- ollama rm llama3
+
+kubectl exec -n ai-platform deployment/ollama -- ollama pull llama3.2:1b
+kubectl exec -n ai-platform deployment/ollama -- ollama list
 
 kubectl apply -f ai-platform-host.yml
 kubectl rollout restart deployment/ai-platform-host -n ai-platform
