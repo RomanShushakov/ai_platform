@@ -72,3 +72,21 @@ curl -X POST http://100.90.183.16:30080/chat \
 
 
 ./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+mkdir -p ~/nfs/rag/artifacts
+on laptop:
+rsync -avz artifacts/rag/ roman@raspberry:/home/roman/nfs/rag/artifacts/
+then verify on raspberry:
+ls -la ~/nfs/rag/artifacts
+
+kubectl exec -n ai-platform deployment/ollama -- ollama pull nomic-embed-text
+kubectl exec -n ai-platform deployment/ollama -- ollama list
+
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ai-platform-host.yml
+kubectl rollout restart deployment/ai-platform-host -n ai-platform
+kubectl logs -n ai-platform deployment/ai-platform-host
+
+curl -X POST http://100.90.183.16:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'

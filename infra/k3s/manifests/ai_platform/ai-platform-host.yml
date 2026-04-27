@@ -40,7 +40,11 @@ spec:
             - name: LLM_MODEL
               value: "llama3.2:1b"
             - name: RETRIEVAL_BACKEND
-              value: "noop"
+              value: "embeddings_local"
+            - name: RAG_ARTIFACTS_PATH
+              value: "/mnt/nfs/rag/artifacts"
+            - name: EMBEDDING_MODEL
+              value: "nomic-embed-text"
           volumeMounts:
             - name: nfs-data
               mountPath: /mnt/nfs
