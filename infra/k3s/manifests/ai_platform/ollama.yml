@@ -36,9 +36,10 @@ metadata:
   name: ollama
   namespace: ai-platform
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: ollama
   ports:
     - port: 11434
       targetPort: 11434
+      nodePort: 31134

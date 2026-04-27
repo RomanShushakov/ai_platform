@@ -1,0 +1,17 @@
+[package]
+name = "rag_indexer_jetson"
+edition = "2024"
+version = "0.1.0"
+
+[dependencies]
+anyhow = "1.0.102"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tokio = { version = "1.52.1", features = ["full"] }
+reqwest = { version = "0.13.2", default-features = false, features = [
+    "json",
+    "rustls",
+] }
+tracing = "0.1.44"
+
+[workspace]

@@ -90,3 +90,45 @@ kubectl logs -n ai-platform deployment/ai-platform-host
 curl -X POST http://100.90.183.16:30080/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"How do I request vacation?"}'
+
+
+./scripts/sync_rag_knowledge_base.sh
+
+on jetson:
+curl https://sh.rustup.rs -sSf | sh
+source $HOME/.cargo/env
+
+rustc --version
+cargo --version
+
+on laptop:
+./scripts/sync_rag_indexer_jetson.sh
+
+on jetson:
+cd ~/workdir/rag_indexer_jetson
+cargo build --release
+
+cp target/release/rag_indexer_jetson /home/roman/nfs/rag/bin/rag_indexer
+
+on raspberry:
+mkdir -p /home/roman/nfs/rag/jobs/logs
+mkdir -p /home/roman/nfs/rag/jobs/work
+
+on laptop:
+./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ollama.yml
+kubectl rollout restart deployment/ollama -n ai-platform
+kubectl logs -n ai-platform deployment/ollama
+
+on jetson:
+curl http://127.0.0.1:31134/api/tags
+
+on raspberry:
+sbatch /home/roman/nfs/rag/jobs/rag-index.slurm
+
+squeue
+ls -lh /home/roman/nfs/rag/jobs/logs
+tail -n 100 /home/roman/nfs/rag/jobs/logs/rag-index-*.out
+tail -n 100 /home/roman/nfs/rag/jobs/logs/rag-index-*.err
