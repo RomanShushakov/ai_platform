@@ -106,3 +106,7 @@ kubectl expose deployment registry-test \
 
 kubectl get pods -o wide
 kubectl get svc registry-test
+
+p.s. please look at root commands.txt because it was needed to build image
+with proper arch
+

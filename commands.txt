@@ -80,3 +80,27 @@ hybrid:
 curl -X POST http://localhost:3000/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"What is the expense policy and what is the current status of my reimbursement?"}'
+
+
+to build image with proper arch:
+docker buildx build \
+  --platform linux/arm64 \
+  -f host/dockerfile \
+  -t 192.168.178.103:5000/ai-platform-host:latest \
+  --push .
+
+
+put file from k3s_test_manifests to workdir in raspberry
+
+then:
+kubectl apply -f ~/workdir/k3s/ai-platform/ai-platform-host.yml
+kubectl get pods -n ai-platform -o wide
+kubectl get svc -n ai-platform
+kubectl logs -n ai-platform deployment/ai-platform-host
+
+then on laptop:
+curl http://100.109.72.92:30080/health
+
+or
+
+curl http://100.90.183.16:30080/health
