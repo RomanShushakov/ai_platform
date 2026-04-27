@@ -1,87 +1,3 @@
-cargo run -p tools-server
-
-curl http://localhost:3001/health
-
-curl http://localhost:3001/tools
-
-
-Terminal 1:
-cargo run -p tools-server
-
-Terminal 2:
-cargo run -p host
-
-
-docker run -d -p 11434:11434 ollama/ollama:0.18.2
-docker exec -it <container_id> ollama pull llama3
-
-cargo run -p host
-
-
-Terminal 1:
-cargo run -p tools-server
-
-Terminal 2:
-cargo run -p host
-
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What is the weather in Berlin?"}'
-
-
-docker compose up --build
-
-docker exec -it ai_platform_ollama ollama pull llama3
-
-docker exec -it ai_platform_ollama ollama list
-
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What is the weather in Berlin?"}'
-
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"How do I request vacation?"}'
-
-
-docker compose up --build
-
-or
-
-TOOL_PROVIDER=http docker compose --profile http-tools up --build
-
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What is the weather in Berlin?"}'
-
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"How do I request vacation?"}'
-
-docker exec -it ai_platform_ollama ollama pull nomic-embed-text
-
-cargo run -p rag_indexer
-
-RETRIEVAL_BACKEND=embeddings_local \
-RAG_ARTIFACTS_PATH=artifacts/rag \
-cargo run -p host
-
-tool first:
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What is the weather in Berlin?"}'
-
-retrieval first:
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"How do I request vacation?"}'
-
-hybrid:
-curl -X POST http://localhost:3000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"What is the expense policy and what is the current status of my reimbursement?"}'
-
-
 to build image with proper arch:
 docker buildx build \
   --platform linux/arm64 \
@@ -89,11 +5,10 @@ docker buildx build \
   -t 192.168.178.103:5000/ai-platform-host:latest \
   --push .
 
-
-put file from k3s_test_manifests to workdir in raspberry
+put file from infra/k3s/ai_platform/manifests to workdir in raspberry
 
 then:
-kubectl apply -f ~/workdir/k3s/ai-platform/ai-platform-host.yml
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ai-platform-host.yml
 kubectl get pods -n ai-platform -o wide
 kubectl get svc -n ai-platform
 kubectl logs -n ai-platform deployment/ai-platform-host
@@ -106,7 +21,7 @@ or
 curl http://100.90.183.16:30080/health
 
 
-kubectl apply -f ~/workdir/k3s/ai_platform/ollama.yml
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ollama.yml
 
 kubectl get pods -n ai-platform -o wide
 kubectl logs -n ai-platform deployment/ollama
@@ -132,10 +47,13 @@ kubectl exec -n ai-platform deployment/ollama -- ollama rm llama3
 kubectl exec -n ai-platform deployment/ollama -- ollama pull llama3.2:1b
 kubectl exec -n ai-platform deployment/ollama -- ollama list
 
-kubectl apply -f ai-platform-host.yml
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ai-platform-host.yml
 kubectl rollout restart deployment/ai-platform-host -n ai-platform
 kubectl logs -n ai-platform deployment/ai-platform-host
 
 curl -X POST http://100.90.183.16:30080/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"What is the weather in Berlin?"}'
+
+
+./scripts/sync_k3s_manifests.sh
