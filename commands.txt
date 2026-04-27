@@ -132,3 +132,12 @@ squeue
 ls -lh /home/roman/nfs/rag/jobs/logs
 tail -n 100 /home/roman/nfs/rag/jobs/logs/rag-index-*.out
 tail -n 100 /home/roman/nfs/rag/jobs/logs/rag-index-*.err
+
+kubectl rollout restart deployment/ai-platform-host -n ai-platform
+kubectl rollout status deployment/ai-platform-host -n ai-platform
+kubectl logs -n ai-platform deployment/ai-platform-host
+
+on laptop:
+curl -X POST http://100.90.183.16:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'
