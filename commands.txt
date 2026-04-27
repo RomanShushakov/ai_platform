@@ -1,3 +1,18 @@
+curl http://192.168.178.103:5000/v2/_catalog
+curl -I \
+  -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+  http://192.168.178.103:5000/v2/nginx-test/manifests/latest
+curl -X DELETE \
+  http://192.168.178.103:5000/v2/nginx-test/manifests/sha256:a556523f89a2588511ab76c7b1fec6158c7ec5617e04365354a771d7b102020c
+
+on jetson:
+sudo docker-registry garbage-collect /etc/docker/registry/config.yml
+
+sudo systemctl stop docker-registry
+sudo rm -rf /var/lib/docker-registry/docker/registry/v2/repositories/nginx-test
+sudo docker-registry garbage-collect /etc/docker/registry/config.yml
+sudo systemctl start docker-registry
+
 to build image with proper arch:
 docker buildx build \
   --platform linux/arm64 \
