@@ -28,9 +28,17 @@ spec:
             - name: HOST_PORT
               value: "3000"
             - name: TOOL_PROVIDER
-              value: "http"
+              value: "mcp"
+            - name: MCP_TOOLS_BINARY
+              value: "/usr/local/bin/tools-server"
             - name: LLM_BACKEND
               value: "ollama"
+            - name: LLM_BASE_URL
+              value: "http://ollama:11434"
+            - name: LLM_CHAT_PATH
+              value: "/api/chat"
+            - name: LLM_MODEL
+              value: "tinyllama"
             - name: RETRIEVAL_BACKEND
               value: "noop"
           volumeMounts:

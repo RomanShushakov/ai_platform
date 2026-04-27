@@ -104,3 +104,34 @@ curl http://100.109.72.92:30080/health
 or
 
 curl http://100.90.183.16:30080/health
+
+
+kubectl apply -f ~/workdir/k3s/ai_platform/ollama.yml
+
+kubectl get pods -n ai-platform -o wide
+kubectl logs -n ai-platform deployment/ollama
+kubectl get svc -n ai-platform
+
+kubectl run curl-test \
+  -n ai-platform \
+  --rm -it \
+  --image=curlimages/curl \
+  --restart=Never \
+  -- http://ollama:11434/api/tags
+
+kubectl exec -n ai-platform deployment/ollama -- ollama list
+
+kubectl exec -n ai-platform deployment/ollama -- ollama pull tinyllama
+kubectl exec -n ai-platform deployment/ollama -- ollama list
+kubectl exec -n ai-platform deployment/ollama -- ollama rm tinyllama
+
+kubectl exec -n ai-platform deployment/ollama -- ollama pull llama3
+kubectl exec -n ai-platform deployment/ollama -- ollama list
+
+kubectl apply -f ai-platform-host.yml
+kubectl rollout restart deployment/ai-platform-host -n ai-platform
+kubectl logs -n ai-platform deployment/ai-platform-host
+
+curl -X POST http://100.90.183.16:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the weather in Berlin?"}'
