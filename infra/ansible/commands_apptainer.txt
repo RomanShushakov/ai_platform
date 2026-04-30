@@ -1,0 +1,4 @@
+Step 1:
+ansible-playbook apptainer/playbooks/install_apptainer.yml -K
+
+ansible-playbook apptainer/playbooks/install_apptainer_rollback.yml -K

@@ -1,0 +1,35 @@
+---
+- name: Install Apptainer on Jetson
+  hosts: jetson
+  become: true
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Install repository helper packages
+      ansible.builtin.apt:
+        name:
+          - software-properties-common
+        state: present
+
+    - name: Add Apptainer PPA
+      ansible.builtin.apt_repository:
+        repo: ppa:apptainer/ppa
+        state: present
+        update_cache: true
+
+    - name: Install Apptainer
+      ansible.builtin.apt:
+        name: apptainer
+        state: present
+
+    - name: Check Apptainer version
+      ansible.builtin.command: apptainer --version
+      register: apptainer_version
+      changed_when: false
+
+    - name: Print Apptainer version
+      ansible.builtin.debug:
+        msg: "{{ apptainer_version.stdout }}"

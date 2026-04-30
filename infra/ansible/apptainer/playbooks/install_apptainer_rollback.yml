@@ -1,0 +1,22 @@
+---
+- name: Roll back Apptainer installation on Jetson
+  hosts: jetson
+  become: true
+
+  tasks:
+    - name: Remove Apptainer package
+      ansible.builtin.apt:
+        name: apptainer
+        state: absent
+        purge: true
+
+    - name: Remove Apptainer PPA
+      ansible.builtin.apt_repository:
+        repo: ppa:apptainer/ppa
+        state: absent
+        update_cache: true
+
+    - name: Autoremove unused packages
+      ansible.builtin.apt:
+        autoremove: true
+        purge: true
