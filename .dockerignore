@@ -6,6 +6,11 @@ target
 **/*.swp
 dockerfile*
 docker-compose.yml
+command_local.txt
 command.txt
 
-infra/ansible/venv
+infra
+artifacts
+knowledge_base
+rag_indexer_jetson
+README.md
