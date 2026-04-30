@@ -168,3 +168,9 @@ apptainer exec \
   --bind /home/roman/nfs/rag:/home/roman/nfs/rag \
   /home/roman/nfs/rag/images/rag-indexer.sif \
   /usr/local/bin/rag_indexer
+
+
+on raspberry:
+sudo vi /home/roman/nfs/rag/jobs/rag-index.slurm
+
+sbatch /home/roman/nfs/rag/jobs/rag-index.slurm
