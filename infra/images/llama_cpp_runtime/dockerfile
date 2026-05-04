@@ -1,0 +1,14 @@
+FROM nvcr.io/nvidia/l4t-jetpack:r36.4.0
+
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY llama-server /usr/local/bin/llama-server
+
+RUN chmod +x /usr/local/bin/llama-server
+
+EXPOSE 8000
+
+ENTRYPOINT ["/usr/local/bin/llama-server"]

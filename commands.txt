@@ -174,3 +174,43 @@ on raspberry:
 sudo vi /home/roman/nfs/rag/jobs/rag-index.slurm
 
 sbatch /home/roman/nfs/rag/jobs/rag-index.slurm
+
+
+on jetson:
+sudo apt update
+sudo apt install -y git cmake build-essential curl
+
+cd ~/workdir
+
+git clone https://github.com/ggml-org/llama.cpp.git
+cd llama.cpp
+
+cmake -B build \
+  -DGGML_CUDA=ON \
+  -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc \
+  -DCMAKE_BUILD_TYPE=Release
+
+cmake --build build --config Release -j$(nproc)
+
+
+on laptop:
+./scripts/sync_llama_cpp_runtime_image_to_jetson.sh
+
+on jetson:
+cp ~/workdir/llama.cpp/build/bin/llama-server \
+  ~/workdir/ai_platform/infra/images/llama_cpp_runtime/llama-server
+
+cd ~/workdir/ai_platform/infra/images/llama_cpp_runtime
+
+docker build \
+  -t 192.168.178.103:5000/llama-cpp-server:latest \
+  .
+
+sudo vi /etc/docker/daemon.json
+and add "insecure-registries": ["192.168.178.103:5000"]
+
+sudo systemctl restart docker
+
+docker info | grep -i insecure -A2
+
+docker push 192.168.178.103:5000/llama-cpp-server:latest
