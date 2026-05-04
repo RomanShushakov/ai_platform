@@ -200,6 +200,17 @@ on jetson:
 cp ~/workdir/llama.cpp/build/bin/llama-server \
   ~/workdir/ai_platform/infra/images/llama_cpp_runtime/llama-server
 
+ldd ~/workdir/llama.cpp/build/bin/llama-server | grep llama
+
+cp ~/workdir/llama.cpp/build/bin/libllama*.so* \
+  ~/workdir/ai_platform/infra/images/llama_cpp_runtime/
+
+cp ~/workdir/llama.cpp/build/bin/libggml*.so* \
+  ~/workdir/ai_platform/infra/images/llama_cpp_runtime/
+
+cp ~/workdir/llama.cpp/build/bin/libmtmd*.so* \
+  ~/workdir/ai_platform/infra/images/llama_cpp_runtime/
+
 cd ~/workdir/ai_platform/infra/images/llama_cpp_runtime
 
 docker build \
@@ -214,3 +225,60 @@ sudo systemctl restart docker
 docker info | grep -i insecure -A2
 
 docker push 192.168.178.103:5000/llama-cpp-server:latest
+
+
+on jetson:
+mkdir -p /home/roman/nfs/models/gguf
+
+cd /home/roman/nfs/models/gguf
+
+wget -O qwen2.5-0.5b-instruct-q4_k_m.gguf \
+  https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+
+docker run --rm -it \
+  --runtime nvidia \
+  --network host \
+  -v /home/roman/nfs/models/gguf:/models \
+  192.168.178.103:5000/llama-cpp-server:latest \
+  -m /models/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+  --host 0.0.0.0 \
+  --port 8000 \
+  -ngl 99 \
+  -c 1024 \
+  --parallel 1
+
+ ~/workdir/llama.cpp/build/bin/llama-server \
+  -m /home/roman/nfs/models/gguf/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+  --host 0.0.0.0 \
+  --port 8000 \
+  -ngl 99 \
+  -c 1024 \
+  --parallel 1
+
+
+on laptop:
+./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+kubectl apply -f /home/roman/workdir/k3s/manifests/ai_platform/llama-cpp.yml
+
+kubectl get pods -n ai-platform -o wide
+kubectl logs -n ai-platform deployment/llama-cpp
+
+kubectl run llama-test \
+  -n ai-platform \
+  --rm -it \
+  --image=curlimages/curl \
+  --restart=Never \
+  -- \
+  curl http://llama-cpp:8000/v1/models
+
+kubectl run llama-chat-test \
+  -n ai-platform \
+  --rm -it \
+  --image=curlimages/curl \
+  --restart=Never \
+  -- \
+  curl -X POST http://llama-cpp:8000/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{"model":"qwen2.5-0.5b-instruct-q4_k_m.gguf","messages":[{"role":"user","content":"Say hello in one short sentence."}],"temperature":0,"max_tokens":32}'

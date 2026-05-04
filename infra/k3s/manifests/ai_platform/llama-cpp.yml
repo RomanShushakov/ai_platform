@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp
+  namespace: ai-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-cpp
+  template:
+    metadata:
+      labels:
+        app: llama-cpp
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: jetson
+      runtimeClassName: nvidia
+      containers:
+        - name: llama-cpp
+          image: 192.168.178.103:5000/llama-cpp-server:latest
+          imagePullPolicy: Always
+          args:
+            - "-m"
+            - "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8000"
+            - "-ngl"
+            - "99"
+            - "-c"
+            - "1024"
+            - "--parallel"
+            - "1"
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: gguf-models
+              mountPath: /models
+      volumes:
+        - name: gguf-models
+          hostPath:
+            path: /home/roman/nfs/models/gguf
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-cpp
+  namespace: ai-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: llama-cpp
+  ports:
+    - port: 8000
+      targetPort: 8000
