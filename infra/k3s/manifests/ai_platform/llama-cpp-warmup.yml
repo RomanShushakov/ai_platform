@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: llama-cpp-warmup
+  namespace: ai-platform
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: warmup
+          image: curlimages/curl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Warming up llama-cpp..."
+              curl -sS -X POST http://llama-cpp:8000/v1/chat/completions \
+                -H "Content-Type: application/json" \
+                -d '{
+                  "model":"qwen2.5-0.5b-instruct-q4_k_m.gguf",
+                  "messages":[
+                    {"role":"user","content":"Say hello in one short sentence."}
+                  ],
+                  "temperature":0,
+                  "max_tokens":16
+                }'
+              echo
+              echo "Warmup complete."

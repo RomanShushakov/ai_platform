@@ -282,3 +282,17 @@ kubectl run llama-chat-test \
   curl -X POST http://llama-cpp:8000/v1/chat/completions \
     -H "Content-Type: application/json" \
     -d '{"model":"qwen2.5-0.5b-instruct-q4_k_m.gguf","messages":[{"role":"user","content":"Say hello in one short sentence."}],"temperature":0,"max_tokens":32}'
+
+
+on laptop:
+./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+kubectl apply -f /home/roman/workdir/k3s/manifests/ai_platform/llama-cpp-warmup.yml
+
+kubectl logs -n ai-platform job/llama-cpp-warmup
+kubectl get jobs -n ai-platform
+
+to rerun:
+kubectl delete job llama-cpp-warmup -n ai-platform
+kubectl apply -f /home/roman/workdir/k3s/manifests/ai_platform/llama-cpp-warmup.yml
