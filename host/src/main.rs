@@ -17,8 +17,8 @@ use adapters::inmemory_markdown_retriever::InMemoryMarkdownRetriever;
 use adapters::noop_retriever::NoopRetriever;
 use adapters::{
     http_tool_provider::HttpToolProvider, mcp_tool_provider::McpToolProvider,
-    ollama_llm_backend::OllamaLlmBackend, tools_client::ToolsClient,
-    vllm_llm_backend::VllmLlmBackend,
+    ollama_llm_backend::OllamaLlmBackend, openai_compat_llm_backend::OpenAiCompatLlmBackend,
+    tools_client::ToolsClient,
 };
 use api::AppState;
 use config::Config;
@@ -63,13 +63,13 @@ async fn main() -> anyhow::Result<()> {
                 config.llm_model.clone(),
             ))
         }
-        "vllm" => {
+        "openai_compat" => {
             info!(
                 base_url = %config.llm_base_url,
                 model = %config.llm_model,
-                "using vLLM LLM backend"
+                "using OpenAI-compatible LLM backend"
             );
-            Arc::new(VllmLlmBackend::new(
+            Arc::new(OpenAiCompatLlmBackend::new(
                 config.llm_base_url.clone(),
                 config.llm_model.clone(),
             ))
@@ -96,7 +96,7 @@ async fn main() -> anyhow::Result<()> {
 
             Arc::new(EmbeddingsRetriever::load(
                 &config.rag_artifacts_path,
-                config.llm_base_url.clone(),
+                config.embedding_base_url.clone(),
                 config.embedding_model.clone(),
                 config.retrieval_min_score,
                 config.retrieval_relative_ratio,

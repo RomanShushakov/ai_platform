@@ -32,13 +32,15 @@ spec:
             - name: MCP_TOOLS_BINARY
               value: "/usr/local/bin/tools-server"
             - name: LLM_BACKEND
-              value: "ollama"
+              value: "openai_compat"
             - name: LLM_BASE_URL
-              value: "http://ollama:11434"
+              value: "http://llama-cpp:8000"
             - name: LLM_CHAT_PATH
               value: "/api/chat"
             - name: LLM_MODEL
-              value: "llama3.2:1b"
+              value: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+            - name: EMBEDDING_BASE_URL
+              value: "http://ollama:11434"
             - name: RETRIEVAL_BACKEND
               value: "embeddings_local"
             - name: RAG_ARTIFACTS_PATH

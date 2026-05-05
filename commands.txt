@@ -296,3 +296,23 @@ kubectl get jobs -n ai-platform
 to rerun:
 kubectl delete job llama-cpp-warmup -n ai-platform
 kubectl apply -f /home/roman/workdir/k3s/manifests/ai_platform/llama-cpp-warmup.yml
+
+
+on laptop:
+cargo check
+
+./scripts/build_push_ai_platform_host_arm64.sh
+
+./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ai-platform-host.yml
+kubectl rollout restart deployment/ai-platform-host -n ai-platform
+kubectl rollout status deployment/ai-platform-host -n ai-platform
+kubectl logs -n ai-platform deployment/ai-platform-host
+kubectl get pods -n ai-platform -o wide
+
+on laptop:
+curl -X POST http://jetson.tail0140c.ts.net:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'

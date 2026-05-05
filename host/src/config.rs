@@ -8,6 +8,7 @@ pub struct Config {
     pub llm_base_url: String,
     pub llm_chat_path: String,
     pub llm_model: String,
+    pub embedding_base_url: String,
     pub retrieval_backend: String,
     pub retrieval_top_k: usize,
     pub knowledge_base_path: String,
@@ -44,6 +45,9 @@ impl Config {
                 .unwrap_or_else(|_| "/api/chat".to_string()),
 
             llm_model: std::env::var("LLM_MODEL").unwrap_or_else(|_| "llama3".to_string()),
+
+            embedding_base_url: std::env::var("EMBEDDING_BASE_URL")
+                .unwrap_or_else(|_| "http://localhost:11434".to_string()),
 
             retrieval_backend: std::env::var("RETRIEVAL_BACKEND")
                 .unwrap_or_else(|_| "noop".to_string()),
