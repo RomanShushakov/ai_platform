@@ -1,0 +1,53 @@
+on jetson:
+~/workdir/llama.cpp/build/bin/llama-server --help | grep -i lora -A8 -B4
+
+~/workdir/llama.cpp/build/bin/llama-export-lora --help | head -80 || true
+~/workdir/llama.cpp/build/bin/llama-finetune --help | head -80 || true
+
+mkdir -p /home/roman/nfs/models/lora
+mkdir -p /home/roman/nfs/lora/datasets
+mkdir -p /home/roman/nfs/lora/adapters
+mkdir -p /home/roman/nfs/lora/jobs/logs
+mkdir -p /home/roman/nfs/lora/jobs/work
+
+ls -lh ~/workdir/llama.cpp/build/bin | grep -Ei 'lora|finetune|convert|export'
+
+find ~/workdir/llama.cpp -maxdepth 3 -type f | grep -Ei 'lora|convert'
+
+
+on jetson:
+sed -n '1,220p' ~/workdir/llama.cpp/tests/test-lora-conversion-inference.sh
+
+cat ~/workdir/llama.cpp/requirements/requirements-convert_lora_to_gguf.txt
+
+python3 -m venv ~/workdir/llama.cpp/.venv-lora
+source ~/workdir/llama.cpp/.venv-lora/bin/activate
+
+pip install -r ~/workdir/llama.cpp/requirements/requirements-convert_lora_to_gguf.txt
+
+
+on jetson, inside venv:
+python - <<'PY'
+from huggingface_hub import list_models
+
+models = list_models(
+    search="Qwen2.5-0.5B-Instruct LoRA",
+    limit=10
+)
+
+for m in models:
+    print(m.modelId)
+PY
+
+
+on jetson:
+# on jetson:
+mkdir -p /home/roman/nfs/lora/datasets
+mkdir -p /home/roman/nfs/lora/adapters
+mkdir -p /home/roman/nfs/lora/scripts
+mkdir -p /home/roman/nfs/models/huggingface
+mkdir -p /home/roman/nfs/models/lora/gguf
+
+python3 --version
+pip3 --version
+python3 -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
