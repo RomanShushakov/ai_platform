@@ -20,8 +20,11 @@ async fn main() -> Result<()> {
     let output_dir =
         std::env::var("RAG_OUTPUT_DIR").unwrap_or_else(|_| "artifacts/rag".to_string());
 
-    let ollama_url =
-        std::env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+    let embedding_base_url = std::env::var("EMBEDDING_BASE_URL")
+        .unwrap_or_else(|_| "http://localhost:11434".to_string());
+
+    let embedding_backend =
+        std::env::var("EMBEDDING_BACKEND").unwrap_or_else(|_| "ollama".to_string());
 
     let embedding_model =
         std::env::var("EMBEDDING_MODEL").unwrap_or_else(|_| "nomic-embed-text".to_string());
@@ -44,7 +47,11 @@ async fn main() -> Result<()> {
 
     println!("Loaded {} chunks", chunks.len());
 
-    let client = EmbeddingClient::new(ollama_url, embedding_model);
+    let client = EmbeddingClient::new(
+        embedding_backend,
+        embedding_base_url,
+        embedding_model.clone(),
+    );
 
     let mut embeddings: Vec<ChunkEmbedding> = Vec::<ChunkEmbedding>::new();
 
@@ -75,7 +82,7 @@ async fn main() -> Result<()> {
     fs::write(
         format!("{}/manifest.json", output_dir),
         serde_json::to_string_pretty(&json!({
-            "embedding_model": "nomic-embed-text",
+            "embedding_model": embedding_model,
             "chunks": chunks.len()
         }))?,
     )?;

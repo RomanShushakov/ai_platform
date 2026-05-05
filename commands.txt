@@ -162,7 +162,7 @@ apptainer pull \
 
 KNOWLEDGE_BASE_PATH=/home/roman/nfs/rag/knowledge_base \
 RAG_OUTPUT_DIR=/home/roman/nfs/rag/artifacts \
-OLLAMA_BASE_URL=http://127.0.0.1:31134 \
+EMBEDDING_BASE_URL=http://127.0.0.1:31134 \
 EMBEDDING_MODEL=nomic-embed-text \
 apptainer exec \
   --bind /home/roman/nfs/rag:/home/roman/nfs/rag \
@@ -316,3 +316,101 @@ on laptop:
 curl -X POST http://jetson.tail0140c.ts.net:30080/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"How do I request vacation?"}'
+
+
+on jetson:
+mkdir -p /home/roman/nfs/models/gguf
+cd /home/roman/nfs/models/gguf
+
+wget -O all-minilm-l6-v2-q8_0.gguf \
+  https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf
+
+docker run --rm -it \
+  --runtime nvidia \
+  --network host \
+  -v /home/roman/nfs/models/gguf:/models \
+  192.168.178.103:5000/llama-cpp-server:latest \
+  -m /models/all-minilm-l6-v2-q8_0.gguf \
+  --host 0.0.0.0 \
+  --port 8001 \
+  --embeddings \
+  --pooling mean \
+  -ngl 99 \
+  -c 512 \
+  --parallel 1
+
+on raspberry:
+curl -X POST http://jetson:8001/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "all-minilm-l6-v2-q8_0.gguf",
+    "input": "How do I request vacation?"
+  }'
+
+
+on laptop:
+./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/llama-cpp-embed.yml
+kubectl rollout status deployment/llama-cpp-embed -n ai-platform
+kubectl get pods -n ai-platform -o wide
+kubectl logs -n ai-platform deployment/llama-cpp-embed
+
+kubectl run embed-test \
+  -n ai-platform \
+  --rm -it \
+  --image=curlimages/curl \
+  --restart=Never \
+  -- \
+  curl -X POST http://llama-cpp-embed:8001/v1/embeddings \
+    -H "Content-Type: application/json" \
+    -d '{"model":"all-minilm-l6-v2-q8_0.gguf","input":"How do I request vacation?"}'
+
+
+on laptop:
+cargo check
+
+./scripts/build_push_rag_indexer_arm64.sh
+
+./scripts/build_push_ai_platform_host_arm64.sh
+
+./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/llama-cpp-embed.yml
+kubectl rollout status deployment/llama-cpp-embed -n ai-platform
+kubectl get pods -n ai-platform -o wide
+kubectl logs -n ai-platform deployment/llama-cpp-embed
+
+on jetson:
+rm -f /home/roman/nfs/rag/images/rag-indexer.sif
+
+apptainer pull \
+  --no-https \
+  /home/roman/nfs/rag/images/rag-indexer.sif \
+  docker://192.168.178.103:5000/rag-indexer:latest
+
+on raspberry:
+sudo vi /home/roman/nfs/rag/jobs/rag-index.slurm
+
+sbatch /home/roman/nfs/rag/jobs/rag-index.slurm
+
+squeue
+ls -lh /home/roman/nfs/rag/jobs/logs
+tail -n 100 /home/roman/nfs/rag/jobs/logs/rag-index-*.out
+tail -n 100 /home/roman/nfs/rag/jobs/logs/rag-index-*.err
+
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ai-platform-host.yml
+kubectl rollout restart deployment/ai-platform-host -n ai-platform
+kubectl rollout status deployment/ai-platform-host -n ai-platform
+kubectl logs -n ai-platform deployment/ai-platform-host
+kubectl get pods -n ai-platform -o wide
+
+curl -X POST http://jetson.tail0140c.ts.net:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'
+
+kubectl delete -f ~/workdir/k3s/manifests/ai_platform/ollama.yml
+
+kubectl get pods -n ai-platform -o wide

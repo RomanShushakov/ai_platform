@@ -8,12 +8,13 @@ pub struct Config {
     pub llm_base_url: String,
     pub llm_chat_path: String,
     pub llm_model: String,
-    pub embedding_base_url: String,
     pub retrieval_backend: String,
     pub retrieval_top_k: usize,
     pub knowledge_base_path: String,
     pub max_llm_steps: usize,
     pub rag_artifacts_path: String,
+    pub embedding_backend: String,
+    pub embedding_base_url: String,
     pub embedding_model: String,
     pub retrieval_min_score: f32,
     pub retrieval_relative_ratio: f32,
@@ -46,9 +47,6 @@ impl Config {
 
             llm_model: std::env::var("LLM_MODEL").unwrap_or_else(|_| "llama3".to_string()),
 
-            embedding_base_url: std::env::var("EMBEDDING_BASE_URL")
-                .unwrap_or_else(|_| "http://localhost:11434".to_string()),
-
             retrieval_backend: std::env::var("RETRIEVAL_BACKEND")
                 .unwrap_or_else(|_| "noop".to_string()),
 
@@ -67,6 +65,12 @@ impl Config {
 
             rag_artifacts_path: std::env::var("RAG_ARTIFACTS_PATH")
                 .unwrap_or_else(|_| "artifacts/rag".to_string()),
+
+            embedding_backend: std::env::var("EMBEDDING_BACKEND")
+                .unwrap_or_else(|_| "ollama".to_string()),
+
+            embedding_base_url: std::env::var("EMBEDDING_BASE_URL")
+                .unwrap_or_else(|_| "http://localhost:11434".to_string()),
 
             embedding_model: std::env::var("EMBEDDING_MODEL")
                 .unwrap_or_else(|_| "nomic-embed-text".to_string()),

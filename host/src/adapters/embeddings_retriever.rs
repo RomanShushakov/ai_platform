@@ -20,6 +20,7 @@ pub struct EmbeddingsRetriever {
     chunks: Vec<RetrievedChunk>,
     embeddings: HashMap<String, Vec<f32>>,
     client: reqwest::Client,
+    backend: String,
     base_url: String,
     model: String,
     min_score: f32,
@@ -29,6 +30,7 @@ pub struct EmbeddingsRetriever {
 impl EmbeddingsRetriever {
     pub fn load(
         artifacts_path: &str,
+        backend: String,
         base_url: String,
         model: String,
         min_score: f32,
@@ -52,6 +54,7 @@ impl EmbeddingsRetriever {
             chunks,
             embeddings,
             client: reqwest::Client::new(),
+            backend,
             base_url,
             model,
             min_score,
@@ -60,7 +63,15 @@ impl EmbeddingsRetriever {
     }
 
     async fn embed_query(&self, text: &str) -> Result<Vec<f32>> {
-        let url = format!("{}/api/embeddings", self.base_url);
+        match self.backend.as_str() {
+            "ollama" => self.embed_query_ollama(text).await,
+            "openai_compat" => self.embed_query_openai_compat(text).await,
+            other => anyhow::bail!("unsupported EMBEDDING_BACKEND value: {}", other),
+        }
+    }
+
+    async fn embed_query_ollama(&self, text: &str) -> Result<Vec<f32>> {
+        let url = format!("{}/api/embeddings", self.base_url.trim_end_matches('/'));
 
         let resp = self
             .client
@@ -74,14 +85,25 @@ impl EmbeddingsRetriever {
             .json::<serde_json::Value>()
             .await?;
 
-        let emb = resp["embedding"]
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("invalid embedding response"))?
-            .iter()
-            .map(|v| v.as_f64().unwrap_or(0.0) as f32)
-            .collect();
+        parse_ollama_embedding(resp)
+    }
 
-        Ok(emb)
+    async fn embed_query_openai_compat(&self, text: &str) -> Result<Vec<f32>> {
+        let url = format!("{}/v1/embeddings", self.base_url.trim_end_matches('/'));
+
+        let resp = self
+            .client
+            .post(url)
+            .json(&serde_json::json!({
+                "model": self.model,
+                "input": text
+            }))
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+
+        parse_openai_compat_embedding(resp)
     }
 }
 
@@ -137,4 +159,26 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     }
 
     dot / (norm_a.sqrt() * norm_b.sqrt())
+}
+
+fn parse_ollama_embedding(resp: serde_json::Value) -> Result<Vec<f32>> {
+    let emb = resp["embedding"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("invalid ollama embedding response"))?
+        .iter()
+        .map(|v| v.as_f64().unwrap_or(0.0) as f32)
+        .collect();
+
+    Ok(emb)
+}
+
+fn parse_openai_compat_embedding(resp: serde_json::Value) -> Result<Vec<f32>> {
+    let emb = resp["data"][0]["embedding"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("invalid OpenAI-compatible embedding response"))?
+        .iter()
+        .map(|v| v.as_f64().unwrap_or(0.0) as f32)
+        .collect();
+
+    Ok(emb)
 }

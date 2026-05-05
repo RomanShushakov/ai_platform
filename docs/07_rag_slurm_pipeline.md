@@ -114,7 +114,7 @@ On Jetson:
 ```bash
 KNOWLEDGE_BASE_PATH=/home/roman/nfs/rag/knowledge_base \
 RAG_OUTPUT_DIR=/home/roman/nfs/rag/artifacts \
-OLLAMA_BASE_URL=http://127.0.0.1:31134 \
+EMBEDDING_BASE_URL=http://127.0.0.1:31134 \
 EMBEDDING_MODEL=nomic-embed-text \
 apptainer exec \
   --bind /home/roman/nfs/rag:/home/roman/nfs/rag \
@@ -178,7 +178,7 @@ export RAG_IMAGE="${RAG_ROOT}/images/rag-indexer.sif"
 export KNOWLEDGE_BASE_PATH="${RAG_ROOT}/knowledge_base"
 export RAG_OUTPUT_DIR="${RAG_ROOT}/artifacts"
 export RAG_WORK_DIR="${RAG_ROOT}/jobs/work/${SLURM_JOB_ID}"
-export OLLAMA_BASE_URL="http://127.0.0.1:31134"
+export EMBEDDING_BASE_URL="http://127.0.0.1:31134"
 export EMBEDDING_MODEL="nomic-embed-text"
 ```
 

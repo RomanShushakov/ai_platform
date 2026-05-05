@@ -18,4 +18,4 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
 
-rmcp = { version = "1.5.0", features = ["client", "transport-child-process"] }
+rmcp = { version = "1.6.0", features = ["client", "transport-child-process"] }

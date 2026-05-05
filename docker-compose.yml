@@ -38,6 +38,8 @@ services:
       MAX_LLM_STEPS: "${MAX_LLM_STEPS:-4}"
 
       RAG_ARTIFACTS_PATH: "${RAG_ARTIFACTS_PATH:-/app/artifacts/rag}"
+      EMBEDDING_BACKEND: "${EMBEDDING_BACKEND:-ollama}"
+      EMBEDDING_BASE_URL: "${EMBEDDING_BASE_URL:-http://ollama:11434}"
       EMBEDDING_MODEL: "${EMBEDDING_MODEL:-nomic-embed-text}"
 
       RETRIEVAL_MIN_SCORE: "${RETRIEVAL_MIN_SCORE:-0.45}"

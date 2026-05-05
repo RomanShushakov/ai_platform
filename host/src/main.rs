@@ -96,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
 
             Arc::new(EmbeddingsRetriever::load(
                 &config.rag_artifacts_path,
+                config.embedding_backend.clone(),
                 config.embedding_base_url.clone(),
                 config.embedding_model.clone(),
                 config.retrieval_min_score,

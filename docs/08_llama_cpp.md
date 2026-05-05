@@ -18,8 +18,9 @@ After this step, you will have:
 
 * llama.cpp built with CUDA on Jetson
 * a Docker runtime image for `llama-server`
-* a GGUF model stored on NFS
-* manual inference working
+* GGUF models stored on NFS
+* chat inference working
+* embeddings inference working (optional)
 * baseline performance verified
 
 ---
@@ -35,30 +36,31 @@ llama-server binary
   ↓
 Docker runtime image
   ↓
-GGUF model from NFS
+GGUF models from NFS
   ↓
-OpenAI-compatible API
+OpenAI-compatible APIs
+  (chat + embeddings)
 ```
 
 ---
 
 # 1️⃣ Install Build Dependencies
 
-On Jetson:
+### on jetson:
 
 ```bash
 sudo apt update
 sudo apt install -y git cmake build-essential curl
 ```
 
-If CUDA compiler is missing:
+Check CUDA:
 
 ```bash
 which nvcc || true
 ls -l /usr/local/cuda/bin/nvcc || true
 ```
 
-If needed, install CUDA compiler package:
+If needed:
 
 ```bash
 sudo apt install -y cuda-nvcc-12-6
@@ -68,7 +70,7 @@ sudo apt install -y cuda-nvcc-12-6
 
 # 2️⃣ Build llama.cpp with CUDA
 
-On Jetson:
+### on jetson:
 
 ```bash
 cd ~/workdir
@@ -109,7 +111,7 @@ Device 0: Orin
 
 # 3️⃣ Sync Runtime Image Files
 
-From laptop:
+### on laptop:
 
 ```bash
 ./scripts/sync_llama_cpp_runtime_image_to_jetson.sh
@@ -131,7 +133,7 @@ to:
 
 # 4️⃣ Copy Runtime Binary and Libraries
 
-On Jetson:
+### on jetson:
 
 ```bash
 cp ~/workdir/llama.cpp/build/bin/llama-server \
@@ -144,7 +146,7 @@ Inspect dependencies:
 ldd ~/workdir/llama.cpp/build/bin/llama-server
 ```
 
-Copy llama.cpp shared libraries:
+Copy libs:
 
 ```bash
 cp ~/workdir/llama.cpp/build/bin/libllama*.so* \
@@ -161,27 +163,21 @@ cp ~/workdir/llama.cpp/build/bin/libmtmd*.so* \
 
 # 5️⃣ Build Runtime Docker Image
 
-On Jetson:
+### on jetson:
 
 ```bash
 cd ~/workdir/ai_platform/infra/images/llama_cpp_runtime
-```
 
-Build:
-
-```bash
 docker build \
   -t 192.168.178.103:5000/llama-cpp-server:latest \
   .
 ```
 
-If Docker cannot push to the HTTP registry, configure insecure registry:
+If needed, configure insecure registry:
 
 ```bash
 sudo vi /etc/docker/daemon.json
 ```
-
-Add:
 
 ```json
 {
@@ -195,12 +191,6 @@ Restart Docker:
 sudo systemctl restart docker
 ```
 
-Verify:
-
-```bash
-docker info | grep -i insecure -A2
-```
-
 Push:
 
 ```bash
@@ -209,34 +199,34 @@ docker push 192.168.178.103:5000/llama-cpp-server:latest
 
 ---
 
-# 6️⃣ Download GGUF Model
+# 6️⃣ Download GGUF Models
 
-On Jetson:
+### on jetson:
 
 ```bash
 mkdir -p /home/roman/nfs/models/gguf
-
 cd /home/roman/nfs/models/gguf
 ```
 
-Download Qwen2.5 0.5B Instruct:
+Chat model:
 
 ```bash
 wget -O qwen2.5-0.5b-instruct-q4_k_m.gguf \
   https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
 ```
 
-Expected:
+Embedding model:
 
-```text
-/home/roman/nfs/models/gguf/qwen2.5-0.5b-instruct-q4_k_m.gguf
+```bash
+wget -O all-minilm-l6-v2-q8_0.gguf \
+  https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf
 ```
 
 ---
 
-# 7️⃣ Run llama.cpp in Docker
+# 7️⃣ Run llama.cpp (Chat)
 
-On Jetson:
+### on jetson:
 
 ```bash
 docker run --rm -it \
@@ -254,31 +244,37 @@ docker run --rm -it \
 
 ---
 
-# 8️⃣ Run llama.cpp Natively
+# 8️⃣ Run llama.cpp (Embeddings)
 
-Useful for comparison/debugging:
+### on jetson:
 
 ```bash
-~/workdir/llama.cpp/build/bin/llama-server \
-  -m /home/roman/nfs/models/gguf/qwen2.5-0.5b-instruct-q4_k_m.gguf \
+docker run --rm -it \
+  --runtime nvidia \
+  --network host \
+  -v /home/roman/nfs/models/gguf:/models \
+  192.168.178.103:5000/llama-cpp-server:latest \
+  -m /models/all-minilm-l6-v2-q8_0.gguf \
   --host 0.0.0.0 \
-  --port 8000 \
+  --port 8001 \
+  --embeddings \
+  --pooling mean \
   -ngl 99 \
-  -c 1024 \
+  -c 512 \
   --parallel 1
 ```
 
 ---
 
-# 9️⃣ Test OpenAI-Compatible API
+# 9️⃣ Test APIs
 
-List models:
+### on raspberry:
+
+Chat:
 
 ```bash
 curl http://jetson:8000/v1/models
 ```
-
-Chat completion:
 
 ```bash
 curl -X POST http://jetson:8000/v1/chat/completions \
@@ -286,167 +282,57 @@ curl -X POST http://jetson:8000/v1/chat/completions \
   -d '{
     "model": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
     "messages": [
-      {"role": "user", "content": "Say hello in one short sentence."}
-    ],
-    "temperature": 0,
-    "max_tokens": 32
+      {"role": "user", "content": "Say hello"}
+    ]
   }'
 ```
 
-Expected:
+Embeddings:
 
-```json
-{
-  "choices": [
-    {
-      "message": {
-        "content": "Hello! ..."
-      }
-    }
-  ]
-}
+```bash
+curl -X POST http://jetson:8001/v1/embeddings \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "all-minilm-l6-v2-q8_0.gguf",
+    "input": "How do I request vacation?"
+  }'
 ```
 
 ---
 
 # 🔟 Enable Jetson Performance Mode
 
-Check current mode:
-
-```bash
-sudo nvpmodel -q
-sudo jetson_clocks --show
-```
-
-Enable max clocks:
+### on jetson:
 
 ```bash
 sudo jetson_clocks
 ```
-
-Verify:
-
-```bash
-sudo jetson_clocks --show
-```
-
-Expected:
-
-```text
-GPU CurrentFreq close to max
-EMC CurrentFreq close to max
-```
-
-This significantly improves inference performance.
 
 ---
 
 # 🧪 Performance Notes
 
-Cold requests may be slow.
-
-After warmup / prompt cache:
-
-```text
-generation can reach ~100 tokens/sec on tiny models
-```
-
-Observed useful runtime flags:
-
-```bash
--ngl 99
--c 1024
---parallel 1
-```
-
-Avoid over-tuning too early. Some flags reduced performance:
-
-```bash
--b 128
--ub 32
--fa off
-```
+* cold start is slow
+* warm cache improves latency significantly
+* small models can reach ~100 tokens/sec
 
 ---
 
 # 🔥 Troubleshooting
 
-## Missing shared library
+## Missing shared libraries
 
-Example:
+Re-copy libs and rebuild image.
 
-```text
-error while loading shared libraries: libllama-common.so.0
-```
+## Docker push fails
 
-Fix:
+Fix insecure registry config.
 
-```bash
-cp ~/workdir/llama.cpp/build/bin/libllama*.so* \
-  ~/workdir/ai_platform/infra/images/llama_cpp_runtime/
-
-cp ~/workdir/llama.cpp/build/bin/libggml*.so* \
-  ~/workdir/ai_platform/infra/images/llama_cpp_runtime/
-
-cp ~/workdir/llama.cpp/build/bin/libmtmd*.so* \
-  ~/workdir/ai_platform/infra/images/llama_cpp_runtime/
-```
-
-Then rebuild the image.
-
----
-
-## Docker push fails with HTTPS error
-
-Symptom:
-
-```text
-http: server gave HTTP response to HTTPS client
-```
-
-Fix Docker insecure registry config:
-
-```json
-{
-  "insecure-registries": ["192.168.178.103:5000"]
-}
-```
-
-Then:
-
-```bash
-sudo systemctl restart docker
-```
-
----
-
-## Inference very slow
-
-Check clocks:
-
-```bash
-sudo jetson_clocks --show
-```
-
-Fix:
+## Slow inference
 
 ```bash
 sudo jetson_clocks
 ```
-
----
-
-## Runtime image is large
-
-Current image may be large because it uses Jetson runtime base and CUDA dependencies.
-
-This is acceptable for now.
-
-Future optimization:
-
-* smaller L4T base image
-* copy only required runtime libs
-* avoid full JetPack base
 
 ---
 
@@ -454,14 +340,13 @@ Future optimization:
 
 You now have:
 
-* llama.cpp built with CUDA ✔
-* GGUF model stored on NFS ✔
-* Docker runtime image ✔
-* OpenAI-compatible API ✔
-* GPU-backed inference on Jetson ✔
+* llama.cpp chat ✔
+* llama.cpp embeddings ✔
+* Docker runtime ✔
+* GPU inference ✔
 
 ---
 
 # 🚀 Next Step
 
-👉 Deploy llama.cpp into K3s and connect the Rust host to it.
+👉 Deploy llama.cpp into K3s and integrate with the platform

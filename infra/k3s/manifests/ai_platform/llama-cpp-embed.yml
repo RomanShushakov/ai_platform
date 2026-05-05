@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp-embed
+  namespace: ai-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-cpp-embed
+  template:
+    metadata:
+      labels:
+        app: llama-cpp-embed
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: jetson
+      runtimeClassName: nvidia
+      containers:
+        - name: llama-cpp-embed
+          image: 192.168.178.103:5000/llama-cpp-server:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-m"
+            - "/models/all-minilm-l6-v2-q8_0.gguf"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8001"
+            - "--embeddings"
+            - "--pooling"
+            - "mean"
+            - "-ngl"
+            - "99"
+            - "-c"
+            - "512"
+            - "--parallel"
+            - "1"
+          ports:
+            - containerPort: 8001
+          volumeMounts:
+            - name: gguf-models
+              mountPath: /models
+      volumes:
+        - name: gguf-models
+          hostPath:
+            path: /home/roman/nfs/models/gguf
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-cpp-embed-nodeport
+  namespace: ai-platform
+spec:
+  type: NodePort
+  selector:
+    app: llama-cpp-embed
+  ports:
+    - port: 8001
+      targetPort: 8001
+      nodePort: 30081

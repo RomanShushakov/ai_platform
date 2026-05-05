@@ -39,14 +39,17 @@ spec:
               value: "/api/chat"
             - name: LLM_MODEL
               value: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+            - name: EMBEDDING_BACKEND
+              value: "openai_compat"
             - name: EMBEDDING_BASE_URL
-              value: "http://ollama:11434"
+              value: "http://llama-cpp-embed:8001"
+            - name: EMBEDDING_MODEL
+              value: "all-minilm-l6-v2-q8_0.gguf"
             - name: RETRIEVAL_BACKEND
               value: "embeddings_local"
             - name: RAG_ARTIFACTS_PATH
               value: "/mnt/nfs/rag/artifacts"
-            - name: EMBEDDING_MODEL
-              value: "nomic-embed-text"
+
           volumeMounts:
             - name: nfs-data
               mountPath: /mnt/nfs
