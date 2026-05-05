@@ -1,13 +1,14 @@
-# 🖥 Infra Track: Slurm + NFS + K3s (Full Lab)
+# 🖥 Infra Track: Slurm + NFS + K3s (AI Platform Lab)
 
 This directory tracks the infrastructure side of the AI platform project.
 
 The goal is not just to run a chatbot, but to understand how:
 
-- online serving
-- batch compute
-- shared storage
-- container orchestration
+* online serving
+* batch compute
+* shared storage
+* container orchestration
+* GPU inference backends
 
 fit together in a real, minimal lab environment.
 
@@ -30,8 +31,8 @@ fit together in a real, minimal lab environment.
      ┌───────────┼──────────────┐
      ▼                           ▼
 ┌──────────────┐         ┌──────────────┐
-│ Rust Host    │         │   Ollama     │
-│ (API + MCP)  │         │ (LLM + Embed)│
+│ Rust Host    │         │ llama.cpp    │
+│ (API + MCP)  │         │ (LLM Server) │
 └──────┬───────┘         └──────┬───────┘
        │                        │
        ▼                        ▼
@@ -55,29 +56,51 @@ fit together in a real, minimal lab environment.
 
 Handles:
 
-- chat API
-- tool orchestration (MCP / HTTP)
-- retrieval (RAG)
-- LLM interaction
+* chat API
+* tool orchestration (MCP / HTTP)
+* retrieval (RAG)
+* LLM interaction (OpenAI-compatible)
 
 Runs inside K3s.
 
+Supports multiple backends:
+
+* llama.cpp (current primary)
+* Ollama (fallback / legacy)
+
 ---
 
-## 2. Batch Plane (Slurm)
+## 2. LLM Serving Plane (llama.cpp)
 
 Handles:
 
-- RAG artifact generation
-- embedding jobs
-- training (future)
-- preprocessing
+* model inference (GGUF)
+* OpenAI-compatible API (`/v1/chat/completions`)
+* embeddings (planned)
+* LoRA support (future)
 
-Runs on Jetson (GPU capable).
+Key characteristics:
+
+* runs directly on Jetson GPU (CUDA)
+* deployed as K3s workload
+* uses local GGUF models from NFS
 
 ---
 
-## 3. Storage Plane (NFS)
+## 3. Batch Plane (Slurm)
+
+Handles:
+
+* RAG artifact generation
+* embedding jobs
+* preprocessing
+* future training / fine-tuning
+
+Runs on Jetson (GPU-capable node).
+
+---
+
+## 4. Storage Plane (NFS)
 
 Shared directory:
 
@@ -87,33 +110,35 @@ Shared directory:
 
 Used for:
 
-- RAG artifacts
-- job outputs
-- models
-- logs
+* GGUF models
+* RAG artifacts
+* embeddings
+* job outputs
+* logs
 
-Mounted:
+Mounted inside K3s pods:
 
 ```
+/models
 /mnt/nfs
 ```
 
-inside K3s pods.
-
 ---
 
-## 4. Orchestration Plane (K3s)
+## 5. Orchestration Plane (K3s)
 
 Cluster:
 
-- Raspberry → control-plane
-- Jetson → worker
+* Raspberry → control-plane
+* Jetson → GPU worker
 
 Runs:
 
-- Rust host
-- Ollama
-- future services
+* Rust host
+* llama.cpp server
+* Ollama (optional / legacy)
+* warmup jobs
+* future services
 
 ---
 
@@ -124,11 +149,14 @@ Runs:
 ├── slurm/
 │   └── job-examples/
 ├── rag/
+│   ├── knowledge_base/
 │   └── artifacts/
 │       ├── chunks.json
 │       ├── embeddings.json
 │       └── manifest.json
 ├── models/
+│   └── gguf/
+│       └── *.gguf
 └── logs/
 ```
 
@@ -136,7 +164,7 @@ Runs:
 
 # 🔥 End-to-End Data Flow
 
-## Online Flow
+## Online Flow (Current)
 
 ```text
 User Request
@@ -145,9 +173,9 @@ K3s Service (NodePort)
    ↓
 Rust Host Pod
    ↓
-Retriever (JSON artifacts from NFS)
+Retriever (NFS artifacts)
    ↓
-Ollama (LLM + embeddings)
+llama.cpp (/v1/chat/completions)
    ↓
 Final Response
 ```
@@ -170,37 +198,98 @@ K3s App reads updated artifacts
 
 ---
 
+# ⚙️ LLM Backend Evolution
+
+## Phase 1 (previous)
+
+* Ollama for:
+
+  * chat
+  * embeddings
+
+## Phase 2 (current)
+
+* llama.cpp replaces Ollama for:
+
+  * chat inference ✔
+* Ollama still optional
+
+## Phase 3 (planned)
+
+* llama.cpp for:
+
+  * embeddings
+  * LoRA adapters
+* remove Ollama completely
+
+---
+
 # ✅ Current Working State
 
-- Slurm cluster ✔
-- GPU scheduling ✔
-- NFS shared storage ✔
-- K3s cluster ✔
-- Ollama deployed ✔
-- Rust app deployed ✔
-- MCP tools loaded ✔
-- RAG working from NFS ✔
+* Slurm cluster ✔
+* GPU scheduling ✔
+* NFS shared storage ✔
+* K3s cluster ✔
+* llama.cpp deployed ✔
+* OpenAI-compatible API ✔
+* Rust app connected to llama.cpp ✔
+* MCP tools loaded ✔
+* RAG working from NFS ✔
+* warmup job implemented ✔
 
 ---
 
 # ⚠️ Known Limitations
 
-## Tool usage (MCP)
+## 1. Tool usage
 
-- tools load correctly
-- LLM does not reliably call tools
+* tools load correctly
+* LLM may skip tool calls
 
-Observed issues:
+Issues:
 
-- direct answering
-- invalid JSON (markdown wrapping)
-- hallucinated tool calls
+* direct answering
+* incomplete reasoning
+* tool avoidance
 
-Planned solution:
+Planned:
 
-- tool forcing
-- retry loop
-- stricter JSON parsing
+* tool forcing
+* retry loop
+* stricter routing rules
+
+---
+
+## 2. JSON output reliability
+
+* model may ignore JSON instructions
+
+Planned:
+
+* stronger system prompt
+* response validation + retry
+
+---
+
+## 3. Retrieval grounding
+
+* model may hallucinate beyond context
+
+Planned:
+
+* stricter prompt constraints
+* "answer ONLY from context" enforcement
+
+---
+
+## 4. Cold start latency
+
+* first request is slow (model warmup)
+
+Mitigation:
+
+* warmup Kubernetes Job ✔
+* prompt caching ✔
 
 ---
 
@@ -208,38 +297,44 @@ Planned solution:
 
 Current:
 
-- JSON artifacts
-- embeddings via Ollama
+* JSON artifacts
+* local embeddings
+* in-memory scoring
 
 Advantages:
 
-- simple
-- debuggable
-- minimal infra
+* simple
+* transparent
+* debuggable
 
 Future:
 
-- optional vector DB (Qdrant)
+* llama.cpp embeddings
+* optional vector DB (Qdrant)
 
 ---
 
 # 🖥 Hardware Topology
 
 ## Laptop
-- development
-- Ansible
-- curl client
+
+* development
+* Docker buildx
+* deployment scripts
+* curl client
 
 ## Raspberry
-- Slurm controller
-- K3s control-plane
-- NFS client
+
+* K3s control-plane
+* Slurm controller
+* NFS client
 
 ## Jetson
-- Slurm worker
-- GPU node
-- NFS server
-- K3s worker
+
+* GPU inference (llama.cpp)
+* Slurm worker
+* NFS server
+* K3s worker
 
 ---
 
@@ -247,29 +342,32 @@ Future:
 
 ## Completed
 
-- Slurm + GPU
-- NFS setup
-- K3s cluster
-- app deployment
-- RAG integration
+* Slurm + GPU
+* NFS setup
+* K3s cluster
+* llama.cpp runtime container
+* OpenAI-compatible API
+* RAG integration
+* warmup job
 
 ## Next
 
-- Slurm-based RAG rebuild
-- automate pipelines
-- improve tool usage
-- add UI
-- experiment with vLLM
+* llama.cpp embeddings
+* LoRA support
+* tool reliability improvements
+* automated Slurm pipelines
+* UI layer
 
 ---
 
 # 🧠 Design Principles
 
-- separate online/offline workloads
-- keep system observable
-- prefer simple formats first
-- avoid unnecessary complexity
-- build incrementally
+* separate online / offline workloads
+* keep system observable
+* prefer simple formats first
+* avoid unnecessary abstractions
+* use OpenAI-compatible APIs as standard
+* build incrementally
 
 ---
 
@@ -277,12 +375,13 @@ Future:
 
 You now have a fully working **mini AI infrastructure platform**:
 
-- distributed compute (Slurm)
-- shared storage (NFS)
-- container orchestration (K3s)
-- model serving (Ollama)
-- RAG pipeline (end-to-end)
+* distributed compute (Slurm)
+* shared storage (NFS)
+* container orchestration (K3s)
+* GPU inference (llama.cpp)
+* OpenAI-compatible serving
+* RAG pipeline (end-to-end)
 
 Next milestone:
 
-👉 Slurm-driven automated RAG pipeline
+👉 Fully local pipeline (llama.cpp for chat + embeddings + LoRA)
