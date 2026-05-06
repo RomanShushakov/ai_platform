@@ -58,33 +58,179 @@ cat > infra/slurm/jobs/lora-train.slurm <<'EOF'
 
 set -euo pipefail
 
-REPO_DIR="/home/roman/nfs/repos/ai_platform"
+WORKDIR="/home/roman/workdir/ai_platform"
 SIF="/home/roman/nfs/lora/images/lora-trainer.sif"
 
-BASE_MODEL="/home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct"
-DATASET="/home/roman/nfs/lora/datasets/lab_style.jsonl"
-OUTPUT_DIR="/home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_${SLURM_JOB_ID}"
+export BASE_MODEL="/home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct"
+export DATASET_PATH="/home/roman/nfs/lora/datasets/lab_style.jsonl"
+export OUTPUT_DIR="/home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_${SLURM_JOB_ID}"
+export MAX_STEPS="50"
+export NUM_TRAIN_EPOCHS="20"
+export MAX_LENGTH="256"
+export LEARNING_RATE="2e-4"
+export BATCH_SIZE="1"
+export GRAD_ACCUM_STEPS="1"
 
 mkdir -p /home/roman/nfs/lora/logs
 mkdir -p /home/roman/nfs/lora/adapters
 
 echo "Job ID: ${SLURM_JOB_ID}"
 echo "Node: $(hostname)"
-echo "Base model: ${BASE_MODEL}"
-echo "Dataset: ${DATASET}"
-echo "Output: ${OUTPUT_DIR}"
+echo "WORKDIR=${WORKDIR}"
+echo "SIF=${SIF}"
+echo "BASE_MODEL=${BASE_MODEL}"
+echo "DATASET_PATH=${DATASET_PATH}"
+echo "OUTPUT_DIR=${OUTPUT_DIR}"
+echo "MAX_STEPS=${MAX_STEPS}"
+echo "NUM_TRAIN_EPOCHS=${NUM_TRAIN_EPOCHS}"
 
 apptainer exec \
   --bind /home/roman/nfs:/home/roman/nfs \
+  --bind /home/roman/workdir:/home/roman/workdir \
   "${SIF}" \
-  python "${REPO_DIR}/lora/training/train_qwen_lora.py" \
-    --base-model "${BASE_MODEL}" \
-    --dataset "${DATASET}" \
-    --output-dir "${OUTPUT_DIR}" \
-    --max-steps 50 \
-    --learning-rate 2e-4 \
-    --batch-size 1 \
-    --gradient-accumulation-steps 1
+  bash -lc "cd ${WORKDIR} && python lora/training/train_qwen_lora.py"
 
 echo "Adapter written to ${OUTPUT_DIR}"
 EOF
+
+
+on laptop:
+cd ~/workdir/ai_platform
+
+./scripts/build_and_push_lora_training_image.sh
+
+on jetson:
+mkdir -p /home/roman/nfs/lora/images
+
+apptainer pull \
+  --no-https \
+  /home/roman/nfs/lora/images/lora-trainer.sif \
+  docker://192.168.178.103:5000/lora-trainer:latest
+
+ls -lh /home/roman/nfs/lora/images/lora-trainer.sif
+
+on raspberry:
+sudo vi /home/roman/nfs/lora/jobs/lora-train.slurm
+
+ls -lh /home/roman/nfs/lora/jobs/lora-train.slurm
+ls -lh /home/roman/nfs/lora/images/lora-trainer.sif
+
+sbatch /home/roman/nfs/lora/jobs/lora-train.slurm
+
+squeue
+
+tail -f /home/roman/nfs/lora/logs/lora-train-*.out
+tail -f /home/roman/nfs/lora/logs/lora-train-*.err
+
+on jetson:
+cd ~/workdir/llama.cpp
+source ~/workdir/llama.cpp/.venv-lora/bin/activate
+
+python convert_lora_to_gguf.py \
+  /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_<JOB_ID> \
+  --base /home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct \
+  --outfile /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_<JOB_ID>.gguf \
+  --outtype f16
+
+ls -lh /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_<JOB_ID>*
+
+
+on jetson:
+cat /etc/nv_tegra_release
+
+dpkg -l | grep -E "nvidia-l4t-core|cuda|cudnn|tensorrt" | head -50
+
+nvcc --version || true
+
+nvidia-smi || true
+
+python3 - <<'PY'
+import platform
+print("machine:", platform.machine())
+PY
+
+on raspberry:
+sinfo -o "%N %G %t"
+
+scontrol show node jetson | grep -E "Gres|CfgTRES|AllocTRES"
+
+sudo vi /home/roman/nfs/lora/jobs/gpu-smoke.slurm
+
+sbatch /home/roman/nfs/lora/jobs/gpu-smoke.slurm
+squeue
+tail -f /home/roman/nfs/lora/logs/gpu-smoke-*.out
+
+on laptop:
+mkdir -p infra/images/lora_training_cuda
+
+cat > infra/images/lora_training_cuda/dockerfile <<'EOF'
+FROM dustynv/l4t-pytorch:r36.4.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_INDEX_URL=https://pypi.org/simple
+ENV PIP_EXTRA_INDEX_URL=https://pypi.ngc.nvidia.com
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace/ai_platform
+
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
+RUN python3 -m pip install \
+    transformers \
+    peft \
+    datasets \
+    accelerate \
+    safetensors \
+    sentencepiece \
+    scipy
+
+CMD ["python3", "-c", "import torch; print(torch.__version__); print(torch.cuda.is_available())"]
+EOF
+
+cat > scripts/build_and_push_lora_training_cuda_image.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+REGISTRY=192.168.178.103:5000
+IMAGE=$REGISTRY/lora-trainer-cuda:latest
+
+docker buildx build \
+  --platform linux/arm64 \
+  -f infra/images/lora_training_cuda/dockerfile \
+  -t "$IMAGE" \
+  --push .
+EOF
+
+chmod +x scripts/build_and_push_lora_training_cuda_image.sh
+
+./scripts/build_and_push_lora_training_cuda_image.sh
+
+on jetson:
+apptainer pull \
+  --no-https \
+  /home/roman/nfs/lora/images/lora-trainer-cuda.sif \
+  docker://192.168.178.103:5000/lora-trainer-cuda:latest
+
+ls -lh /home/roman/nfs/lora/images/lora-trainer-cuda.sif
+
+apptainer exec \
+  --bind /home/roman/nfs:/home/roman/nfs \
+  --bind /dev/nvidia0:/dev/nvidia0 \
+  --bind /dev/nvidiactl:/dev/nvidiactl \
+  --bind /dev/nvidia-modeset:/dev/nvidia-modeset \
+  --bind /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu \
+  --bind /dev/nvhost-as-gpu:/dev/nvhost-as-gpu \
+  --bind /dev/nvhost-gpu:/dev/nvhost-gpu \
+  --bind /dev/nvhost-ctxsw-gpu:/dev/nvhost-ctxsw-gpu \
+  --bind /usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:ro \
+  --bind /usr/local/cuda:/usr/local/cuda:ro \
+  --env LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu/nvidia:/usr/local/cuda/lib64 \
+  /home/roman/nfs/lora/images/lora-trainer-cuda.sif \
+  python3 -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.device_count())"
