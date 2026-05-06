@@ -11,7 +11,7 @@
 set -euo pipefail
 
 REPO_DIR="/home/roman/nfs/repos/ai_platform"
-SIF="/home/roman/nfs/lora/images/lora-trainer_latest.sif"
+SIF="/home/roman/nfs/lora/images/lora-trainer.sif"
 
 BASE_MODEL="/home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct"
 DATASET="/home/roman/nfs/lora/datasets/lab_style.jsonl"

@@ -3,7 +3,6 @@ cd ~/workdir/ai_platform
 
 mkdir -p infra/images/lora_training
 mkdir -p infra/slurm/jobs
-mkdir -p scripts
 
 cat > infra/images/lora_training/dockerfile <<'EOF'
 FROM python:3.11-slim
@@ -29,45 +28,21 @@ CMD ["python", "--version"]
 EOF
 
 
-cat > scripts/build_lora_training_image_on_jetson.sh <<'EOF'
+cat > scripts/build_and_push_lora_training_image.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="192.168.178.103:5000/lora-trainer:latest"
+REGISTRY=192.168.178.103:5000
+IMAGE=$REGISTRY/lora-trainer:latest
 
-cd ~/workdir/ai_platform
-
-docker build \
+docker buildx build \
+  --platform linux/arm64 \
   -f infra/images/lora_training/dockerfile \
-  -t "${IMAGE}" \
-  .
-
-docker push "${IMAGE}"
-
-echo "Pushed ${IMAGE}"
+  -t "$IMAGE" \
+  --push .
 EOF
 
-chmod +x scripts/build_lora_training_image_on_jetson.sh
-
-
-cat > scripts/build_lora_training_sif_on_jetson.sh <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-IMAGE="docker://192.168.178.103:5000/lora-trainer:latest"
-SIF_DIR="/home/roman/nfs/lora/images"
-SIF_PATH="${SIF_DIR}/lora-trainer_latest.sif"
-
-mkdir -p "${SIF_DIR}"
-
-apptainer build \
-  "${SIF_PATH}" \
-  "${IMAGE}"
-
-echo "Built ${SIF_PATH}"
-EOF
-
-chmod +x scripts/build_lora_training_sif_on_jetson.sh
+chmod +x scripts/build_and_push_lora_training_image.sh
 
 
 cat > infra/slurm/jobs/lora-train.slurm <<'EOF'
@@ -84,7 +59,7 @@ cat > infra/slurm/jobs/lora-train.slurm <<'EOF'
 set -euo pipefail
 
 REPO_DIR="/home/roman/nfs/repos/ai_platform"
-SIF="/home/roman/nfs/lora/images/lora-trainer_latest.sif"
+SIF="/home/roman/nfs/lora/images/lora-trainer.sif"
 
 BASE_MODEL="/home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct"
 DATASET="/home/roman/nfs/lora/datasets/lab_style.jsonl"
