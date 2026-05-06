@@ -1,0 +1,115 @@
+on laptop:
+cd ~/workdir/ai_platform
+
+mkdir -p infra/images/lora_training
+mkdir -p infra/slurm/jobs
+mkdir -p scripts
+
+cat > infra/images/lora_training/dockerfile <<'EOF'
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    build-essential \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace/ai_platform
+
+COPY lora/training/requirements.txt /tmp/requirements.txt
+
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    python -m pip install -r /tmp/requirements.txt
+
+CMD ["python", "--version"]
+EOF
+
+
+cat > scripts/build_lora_training_image_on_jetson.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+IMAGE="192.168.178.103:5000/lora-trainer:latest"
+
+cd ~/workdir/ai_platform
+
+docker build \
+  -f infra/images/lora_training/dockerfile \
+  -t "${IMAGE}" \
+  .
+
+docker push "${IMAGE}"
+
+echo "Pushed ${IMAGE}"
+EOF
+
+chmod +x scripts/build_lora_training_image_on_jetson.sh
+
+
+cat > scripts/build_lora_training_sif_on_jetson.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+IMAGE="docker://192.168.178.103:5000/lora-trainer:latest"
+SIF_DIR="/home/roman/nfs/lora/images"
+SIF_PATH="${SIF_DIR}/lora-trainer_latest.sif"
+
+mkdir -p "${SIF_DIR}"
+
+apptainer build \
+  "${SIF_PATH}" \
+  "${IMAGE}"
+
+echo "Built ${SIF_PATH}"
+EOF
+
+chmod +x scripts/build_lora_training_sif_on_jetson.sh
+
+
+cat > infra/slurm/jobs/lora-train.slurm <<'EOF'
+#!/usr/bin/env bash
+#SBATCH --job-name=lora-train
+#SBATCH --output=/home/roman/nfs/lora/logs/lora-train-%j.out
+#SBATCH --error=/home/roman/nfs/lora/logs/lora-train-%j.err
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=6G
+#SBATCH --time=02:00:00
+
+set -euo pipefail
+
+REPO_DIR="/home/roman/nfs/repos/ai_platform"
+SIF="/home/roman/nfs/lora/images/lora-trainer_latest.sif"
+
+BASE_MODEL="/home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct"
+DATASET="/home/roman/nfs/lora/datasets/lab_style.jsonl"
+OUTPUT_DIR="/home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_${SLURM_JOB_ID}"
+
+mkdir -p /home/roman/nfs/lora/logs
+mkdir -p /home/roman/nfs/lora/adapters
+
+echo "Job ID: ${SLURM_JOB_ID}"
+echo "Node: $(hostname)"
+echo "Base model: ${BASE_MODEL}"
+echo "Dataset: ${DATASET}"
+echo "Output: ${OUTPUT_DIR}"
+
+apptainer exec \
+  --bind /home/roman/nfs:/home/roman/nfs \
+  "${SIF}" \
+  python "${REPO_DIR}/lora/training/train_qwen_lora.py" \
+    --base-model "${BASE_MODEL}" \
+    --dataset "${DATASET}" \
+    --output-dir "${OUTPUT_DIR}" \
+    --max-steps 50 \
+    --learning-rate 2e-4 \
+    --batch-size 1 \
+    --gradient-accumulation-steps 1
+
+echo "Adapter written to ${OUTPUT_DIR}"
+EOF
