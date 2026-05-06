@@ -1,32 +1,150 @@
-on jetson:
+# 🧪 LoRA Inference Proof with llama.cpp
+
+This step proves the full LoRA adapter path end-to-end:
+
+```text
+dataset
+  ↓
+PEFT LoRA training
+  ↓
+adapter_model.safetensors
+  ↓
+convert_lora_to_gguf.py
+  ↓
+GGUF LoRA adapter
+  ↓
+llama.cpp --lora
+  ↓
+changed model behavior
+```
+
+This is not yet the final Slurm-based training pipeline.  
+The goal of this step is to prove that a locally trained adapter can be loaded by `llama.cpp`.
+
+---
+
+# 🎯 Goal
+
+After this step, you will have:
+
+- LoRA support confirmed in your llama.cpp build
+- versioned LoRA dataset in the repo
+- LoRA assets synced to NFS
+- a tiny PEFT adapter trained from the dataset
+- a GGUF LoRA adapter created
+- llama.cpp serving the base model with the adapter
+- visible behavior change in responses
+
+---
+
+# 🧭 Architecture
+
+```text
+Laptop
+  ↓
+repo/lora/datasets/lab_style.jsonl
+  ↓ sync script
+NFS
+  ↓
+Jetson
+  ↓ train_qwen_lora.py
+PEFT adapter
+  ↓
+convert_lora_to_gguf.py
+  ↓
+GGUF LoRA adapter
+  ↓
+llama.cpp --lora
+  ↓
+Raspberry curl test
+```
+
+---
+
+# 1️⃣ Check llama.cpp LoRA Support
+
+### on jetson:
+
+```bash
 ~/workdir/llama.cpp/build/bin/llama-server --help | grep -i lora -A8 -B4
 
 ~/workdir/llama.cpp/build/bin/llama-export-lora --help | head -80 || true
 ~/workdir/llama.cpp/build/bin/llama-finetune --help | head -80 || true
+```
 
+Expected flags:
+
+```text
+--lora FNAME
+--lora-scaled FNAME:SCALE
+--lora-init-without-apply
+```
+
+---
+
+# 2️⃣ Create NFS LoRA Directories
+
+### on jetson:
+
+```bash
 mkdir -p /home/roman/nfs/models/lora
 mkdir -p /home/roman/nfs/lora/datasets
 mkdir -p /home/roman/nfs/lora/adapters
 mkdir -p /home/roman/nfs/lora/jobs/logs
 mkdir -p /home/roman/nfs/lora/jobs/work
+```
 
+---
+
+# 3️⃣ Inspect llama.cpp LoRA Tools
+
+### on jetson:
+
+```bash
 ls -lh ~/workdir/llama.cpp/build/bin | grep -Ei 'lora|finetune|convert|export'
+```
 
+Check converter scripts:
+
+```bash
 find ~/workdir/llama.cpp -maxdepth 3 -type f | grep -Ei 'lora|convert'
+```
 
+Inspect llama.cpp LoRA conversion test:
 
-on jetson:
+```bash
 sed -n '1,220p' ~/workdir/llama.cpp/tests/test-lora-conversion-inference.sh
+```
 
+Inspect converter requirements:
+
+```bash
 cat ~/workdir/llama.cpp/requirements/requirements-convert_lora_to_gguf.txt
+```
 
+---
+
+# 4️⃣ Create LoRA Conversion Virtual Environment
+
+This environment is for **conversion**, not training.
+
+### on jetson:
+
+```bash
 python3 -m venv ~/workdir/llama.cpp/.venv-lora
+
 source ~/workdir/llama.cpp/.venv-lora/bin/activate
 
 pip install -r ~/workdir/llama.cpp/requirements/requirements-convert_lora_to_gguf.txt
+```
 
+---
 
-on jetson, inside venv:
+# 5️⃣ Optional: Search for Existing Compatible Adapters
+
+### on jetson, inside `.venv-lora`:
+
+```bash
 python - <<'PY'
 from huggingface_hub import list_models
 
@@ -38,22 +156,19 @@ models = list_models(
 for m in models:
     print(m.modelId)
 PY
+```
 
+The project continued with a self-created adapter because it is more reproducible and controlled.
 
-on jetson:
-# on jetson:
-mkdir -p /home/roman/nfs/lora/datasets
-mkdir -p /home/roman/nfs/lora/adapters
-mkdir -p /home/roman/nfs/lora/scripts
-mkdir -p /home/roman/nfs/models/huggingface
-mkdir -p /home/roman/nfs/models/lora/gguf
+---
 
-python3 --version
-pip3 --version
-python3 -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
+# 6️⃣ Prepare Repo Dataset
 
+The dataset is stored in the repo first, then synced to NFS.
 
-on laptop:
+### on laptop:
+
+```bash
 mkdir -p lora/datasets
 
 cat > lora/datasets/lab_style.jsonl <<'EOF'
@@ -63,7 +178,23 @@ cat > lora/datasets/lab_style.jsonl <<'EOF'
 {"messages":[{"role":"user","content":"What is RAG?"},{"role":"assistant","content":"Lab note: RAG combines retrieval from documents with LLM generation to answer using external context."}]}
 {"messages":[{"role":"user","content":"What is llama.cpp?"},{"role":"assistant","content":"Lab note: llama.cpp is a lightweight runtime for serving GGUF language models efficiently on local hardware."}]}
 EOF
+```
 
+This dataset intentionally trains a simple style:
+
+```text
+Lab note: ...
+```
+
+It is not intended to inject factual knowledge. Facts should still come from RAG.
+
+---
+
+# 7️⃣ Add Sync Script for LoRA Assets
+
+### on laptop:
+
+```bash
 cat > scripts/sync_lora_assets_to_nfs.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -93,15 +224,32 @@ echo "Done."
 EOF
 
 chmod +x scripts/sync_lora_assets_to_nfs.sh
+```
 
+Run sync:
+
+```bash
 ./scripts/sync_lora_assets_to_nfs.sh
+```
 
-on raspberry:
+Verify:
+
+### on raspberry:
+
+```bash
 ls -lh /home/roman/nfs/lora/datasets
 cat /home/roman/nfs/lora/datasets/lab_style.jsonl
+```
 
+---
 
-on laptop:
+# 8️⃣ Create LoRA Training Requirements
+
+This first training environment is a **CPU smoke-test environment**. GPU training will be moved into a proper container/Slurm job later.
+
+### on laptop:
+
+```bash
 mkdir -p lora/training
 mkdir -p lora/jobs
 
@@ -115,10 +263,17 @@ safetensors
 sentencepiece
 scipy
 EOF
+```
 
-then sync requirements.txt file with jetson
+Sync the updated file to Jetson using the normal repo sync workflow.
 
-on jetson:
+---
+
+# 9️⃣ Create Training Virtual Environment
+
+### on jetson:
+
+```bash
 cd ~/workdir/ai_platform
 
 python3 -m venv lora/training/.venv
@@ -128,7 +283,11 @@ source lora/training/.venv/bin/activate
 pip install --upgrade pip
 
 pip install -r lora/training/requirements.txt
+```
 
+Verify:
+
+```bash
 python - <<'PY'
 import torch
 import transformers
@@ -141,9 +300,22 @@ print("transformers:", transformers.__version__)
 print("peft ok")
 print("datasets ok")
 PY
+```
 
+Expected for this CPU smoke-test venv:
 
-on laptop:
+```text
+torch: 2.6.0+cpu
+cuda: False
+```
+
+---
+
+# 🔟 Create Training Script
+
+### on laptop:
+
+```bash
 cat > lora/training/train_qwen_lora.py <<'PY'
 import json
 import os
@@ -281,10 +453,17 @@ def main():
 if __name__ == "__main__":
     main()
 PY
+```
 
-then sync train_qwen_lora.py file with jetson
+Sync the updated file to Jetson using the normal repo sync workflow.
 
-on jetson:
+---
+
+# 1️⃣1️⃣ Run 1-Step Smoke Training
+
+### on jetson:
+
+```bash
 cd ~/workdir/ai_platform
 source lora/training/.venv/bin/activate
 
@@ -293,20 +472,54 @@ NUM_TRAIN_EPOCHS=1 \
 DATASET_PATH=/home/roman/nfs/lora/datasets/lab_style.jsonl \
 OUTPUT_DIR=/home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_smoke \
 python lora/training/train_qwen_lora.py
+```
 
+Verify adapter output:
 
-on jetson:
+```bash
 ls -lh /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_smoke
+```
 
-deactivate
+Expected files include:
 
+```text
+adapter_config.json
+adapter_model.safetensors
+tokenizer_config.json
+```
+
+This 1-step adapter validates the pipeline, but the behavior change may be weak.
+
+---
+
+# 1️⃣2️⃣ Download Local Hugging Face Base Model
+
+The LoRA converter needs a local HF base model directory.
+
+### on jetson:
+
+```bash
 mkdir -p /home/roman/nfs/models/huggingface
 
-source ~/workdir/llama.cpp/.venv-lora/bin/activate
+deactivate || true
 
+source ~/workdir/llama.cpp/.venv-lora/bin/activate
+```
+
+Download base model:
+
+```bash
 hf download Qwen/Qwen2.5-0.5B-Instruct \
   --local-dir /home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct
+```
 
+---
+
+# 1️⃣3️⃣ Convert 1-Step Adapter to GGUF
+
+### on jetson:
+
+```bash
 cd ~/workdir/llama.cpp
 
 python convert_lora_to_gguf.py \
@@ -314,9 +527,21 @@ python convert_lora_to_gguf.py \
   --base /home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct \
   --outfile /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_smoke.gguf \
   --outtype f16
+```
 
+Verify:
+
+```bash
 ls -lh /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_smoke.gguf
+```
 
+---
+
+# 1️⃣4️⃣ Test 1-Step Adapter in llama.cpp
+
+### on jetson:
+
+```bash
 docker run --rm -it \
   --runtime nvidia \
   --network host \
@@ -329,8 +554,13 @@ docker run --rm -it \
   --port 8002 \
   -ngl 99 \
   -c 1024
+```
 
-on raspberry:
+Test:
+
+### on raspberry:
+
+```bash
 curl -X POST http://jetson:8002/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -344,10 +574,18 @@ curl -X POST http://jetson:8002/v1/chat/completions \
     "temperature":0,
     "max_tokens":64
   }'
+```
 
+Expected: the adapter loads, but style change may be weak because training used only one step.
 
-on jetson:
-deactivate
+---
+
+# 1️⃣5️⃣ Train Stronger 50-Step Adapter
+
+### on jetson:
+
+```bash
+deactivate || true
 
 cd ~/workdir/ai_platform
 source lora/training/.venv/bin/activate
@@ -357,8 +595,16 @@ NUM_TRAIN_EPOCHS=20 \
 DATASET_PATH=/home/roman/nfs/lora/datasets/lab_style.jsonl \
 OUTPUT_DIR=/home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_steps50 \
 python lora/training/train_qwen_lora.py
+```
 
-deactivate
+---
+
+# 1️⃣6️⃣ Convert 50-Step Adapter to GGUF
+
+### on jetson:
+
+```bash
+deactivate || true
 
 cd ~/workdir/llama.cpp
 source ~/workdir/llama.cpp/.venv-lora/bin/activate
@@ -368,7 +614,15 @@ python convert_lora_to_gguf.py \
   --base /home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct \
   --outfile /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_steps50.gguf \
   --outtype f16
+```
 
+---
+
+# 1️⃣7️⃣ Run 50-Step LoRA Adapter
+
+### on jetson:
+
+```bash
 docker run --rm -it \
   --runtime nvidia \
   --network host \
@@ -381,8 +635,17 @@ docker run --rm -it \
   --port 8003 \
   -ngl 99 \
   -c 1024
+```
 
-on raspberry:
+---
+
+# 1️⃣8️⃣ Verify LoRA Behavior
+
+### on raspberry:
+
+Test Slurm:
+
+```bash
 curl -X POST http://jetson:8003/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -393,7 +656,11 @@ curl -X POST http://jetson:8003/v1/chat/completions \
     "temperature":0,
     "max_tokens":48
   }'
+```
 
+Test Kubernetes:
+
+```bash
 curl -X POST http://jetson:8003/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -404,7 +671,11 @@ curl -X POST http://jetson:8003/v1/chat/completions \
     "temperature":0,
     "max_tokens":48
   }'
+```
 
+Test RAG:
+
+```bash
 curl -X POST http://jetson:8003/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -415,7 +686,11 @@ curl -X POST http://jetson:8003/v1/chat/completions \
     "temperature":0,
     "max_tokens":48
   }'
+```
 
+Test nearby unseen prompt:
+
+```bash
 curl -X POST http://jetson:8003/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -426,3 +701,104 @@ curl -X POST http://jetson:8003/v1/chat/completions \
     "temperature":0,
     "max_tokens":48
   }'
+```
+
+Expected style:
+
+```text
+Lab note: ...
+```
+
+---
+
+# 🧪 Observed Results
+
+The 1-step smoke adapter successfully loaded but did not strongly change behavior.
+
+The 50-step adapter produced the desired style:
+
+```text
+Lab note: ...
+```
+
+This proves that the LoRA adapter is actually influencing model behavior.
+
+---
+
+# 🔥 Troubleshooting
+
+## `TrainingArguments.__init__()` rejects `overwrite_output_dir`
+
+Remove:
+
+```python
+overwrite_output_dir=True
+```
+
+The used `transformers` version did not support it.
+
+---
+
+## `TrainingArguments.__init__()` rejects `no_cuda`
+
+Use:
+
+```python
+use_cpu=True
+```
+
+instead of:
+
+```python
+no_cuda=True
+```
+
+---
+
+## Converter fails with `FileNotFoundError: Qwen/Qwen2.5-0.5B-Instruct`
+
+The converter needs a local base model directory.
+
+Fix:
+
+```bash
+hf download Qwen/Qwen2.5-0.5B-Instruct \
+  --local-dir /home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct
+```
+
+Then pass:
+
+```bash
+--base /home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct
+```
+
+---
+
+## 1-step adapter does not visibly affect output
+
+Expected. Use more steps:
+
+```bash
+MAX_STEPS=50
+NUM_TRAIN_EPOCHS=20
+```
+
+---
+
+# 📌 Summary
+
+You now have:
+
+- LoRA support confirmed in llama.cpp ✔
+- repo-managed dataset ✔
+- LoRA assets synced to NFS ✔
+- PEFT adapter trained ✔
+- adapter converted to GGUF ✔
+- llama.cpp loaded adapter ✔
+- behavior changed successfully ✔
+
+---
+
+# 🚀 Next Step
+
+👉 Promote LoRA training into a Slurm/Apptainer pipeline.

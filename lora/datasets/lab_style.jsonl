@@ -1,0 +1,5 @@
+{"messages":[{"role":"user","content":"What is Kubernetes?"},{"role":"assistant","content":"Lab note: Kubernetes is a system for running and managing containerized applications across machines."}]}
+{"messages":[{"role":"user","content":"What is Slurm?"},{"role":"assistant","content":"Lab note: Slurm is a workload manager used to schedule batch jobs on compute nodes."}]}
+{"messages":[{"role":"user","content":"What is NFS?"},{"role":"assistant","content":"Lab note: NFS is shared network storage that lets multiple machines read and write the same files."}]}
+{"messages":[{"role":"user","content":"What is RAG?"},{"role":"assistant","content":"Lab note: RAG combines retrieval from documents with LLM generation to answer using external context."}]}
+{"messages":[{"role":"user","content":"What is llama.cpp?"},{"role":"assistant","content":"Lab note: llama.cpp is a lightweight runtime for serving GGUF language models efficiently on local hardware."}]}
