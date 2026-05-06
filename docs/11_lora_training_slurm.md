@@ -1,10 +1,56 @@
-on laptop:
+# 11. LoRA Training with Slurm and Apptainer
+
+This document promotes the LoRA proof from local/manual training into a cluster-style workflow.
+
+Current status:
+
+- CPU LoRA training through Slurm + Apptainer works.
+- Adapter output is saved to NFS.
+- Adapter can be converted to GGUF with llama.cpp.
+- GPU inference is already used by K3s llama.cpp through `runtimeClassName: nvidia` and `-ngl 99`.
+- GPU LoRA training through Apptainer works as a CUDA visibility check from a normal Jetson shell.
+- GPU LoRA training through Slurm is not complete yet.
+- Slurm-launched Apptainer currently fails to expose CUDA correctly on Jetson.
+- CUDA training image also needs package pinning because latest `transformers` is incompatible with the Jetson PyTorch image currently used.
+
+## Paths
+
+```text
+Repo:
+  ~/workdir/ai_platform
+
+NFS root:
+  /home/roman/nfs
+
+LoRA dataset:
+  /home/roman/nfs/lora/datasets/lab_style.jsonl
+
+HF base model:
+  /home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct
+
+CPU training SIF:
+  /home/roman/nfs/lora/images/lora-trainer.sif
+
+CUDA training SIF:
+  /home/roman/nfs/lora/images/lora-trainer-cuda.sif
+
+Adapter output:
+  /home/roman/nfs/lora/adapters
+
+llama.cpp checkout:
+  ~/workdir/llama.cpp
+```
+
+## 1. Create CPU LoRA training image
+
+```bash
+# on laptop
 cd ~/workdir/ai_platform
 
 mkdir -p infra/images/lora_training
 mkdir -p infra/slurm/jobs
 
-cat > infra/images/lora_training/dockerfile <<'EOF'
+cat > infra/images/lora_training/dockerfile <<'DOCKER'
 FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -25,10 +71,16 @@ RUN python -m pip install --upgrade pip setuptools wheel && \
     python -m pip install -r /tmp/requirements.txt
 
 CMD ["python", "--version"]
-EOF
+DOCKER
+```
 
+## 2. Create image build script
 
-cat > scripts/build_and_push_lora_training_image.sh <<'EOF'
+```bash
+# on laptop
+cd ~/workdir/ai_platform
+
+cat > scripts/build_and_push_lora_training_image.sh <<'EOF_SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -40,12 +92,20 @@ docker buildx build \
   -f infra/images/lora_training/dockerfile \
   -t "$IMAGE" \
   --push .
-EOF
+EOF_SCRIPT
 
 chmod +x scripts/build_and_push_lora_training_image.sh
+```
 
+## 3. Create CPU Slurm training job
 
-cat > infra/slurm/jobs/lora-train.slurm <<'EOF'
+The training script uses environment variables, so the Slurm job exports the same variables used during manual training.
+
+```bash
+# on laptop
+cd ~/workdir/ai_platform
+
+cat > infra/slurm/jobs/lora-train.slurm <<'EOF_SLURM'
 #!/usr/bin/env bash
 #SBATCH --job-name=lora-train
 #SBATCH --output=/home/roman/nfs/lora/logs/lora-train-%j.out
@@ -91,15 +151,22 @@ apptainer exec \
   bash -lc "cd ${WORKDIR} && python lora/training/train_qwen_lora.py"
 
 echo "Adapter written to ${OUTPUT_DIR}"
-EOF
+EOF_SLURM
+```
 
+## 4. Build and push CPU training image
 
-on laptop:
+```bash
+# on laptop
 cd ~/workdir/ai_platform
 
 ./scripts/build_and_push_lora_training_image.sh
+```
 
-on jetson:
+## 5. Pull CPU image into Apptainer
+
+```bash
+# on jetson
 mkdir -p /home/roman/nfs/lora/images
 
 apptainer pull \
@@ -108,8 +175,18 @@ apptainer pull \
   docker://192.168.178.103:5000/lora-trainer:latest
 
 ls -lh /home/roman/nfs/lora/images/lora-trainer.sif
+```
 
-on raspberry:
+## 6. Submit CPU LoRA training job
+
+The job file is copied manually into NFS, following the same style as the RAG Slurm job.
+
+```bash
+# on raspberry
+mkdir -p /home/roman/nfs/lora/jobs
+mkdir -p /home/roman/nfs/lora/logs
+mkdir -p /home/roman/nfs/lora/adapters
+
 sudo vi /home/roman/nfs/lora/jobs/lora-train.slurm
 
 ls -lh /home/roman/nfs/lora/jobs/lora-train.slurm
@@ -121,8 +198,18 @@ squeue
 
 tail -f /home/roman/nfs/lora/logs/lora-train-*.out
 tail -f /home/roman/nfs/lora/logs/lora-train-*.err
+```
 
-on jetson:
+Expected adapter output:
+
+```text
+/home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_<JOB_ID>
+```
+
+## 7. Convert Slurm-trained adapter to GGUF
+
+```bash
+# on jetson
 cd ~/workdir/llama.cpp
 source ~/workdir/llama.cpp/.venv-lora/bin/activate
 
@@ -133,9 +220,45 @@ python convert_lora_to_gguf.py \
   --outtype f16
 
 ls -lh /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_<JOB_ID>*
+```
 
+Confirmed result:
 
-on jetson:
+```text
+Model successfully exported to:
+  /home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_slurm_37.gguf
+```
+
+## 8. GPU investigation
+
+GPU inference is already active in K3s.
+
+The llama.cpp deployment uses:
+
+```yaml
+runtimeClassName: nvidia
+```
+
+and:
+
+```text
+-ngl 99
+```
+
+So:
+
+```text
+K3s llama.cpp chat inference: GPU
+K3s llama.cpp embeddings: GPU
+RAG rebuild: CPU Slurm job calling GPU embedding server
+LoRA CPU training: CPU Slurm + Apptainer
+LoRA GPU training: experimental
+```
+
+## 9. Inspect Jetson CUDA stack
+
+```bash
+# on jetson
 cat /etc/nv_tegra_release
 
 dpkg -l | grep -E "nvidia-l4t-core|cuda|cudnn|tensorrt" | head -50
@@ -148,22 +271,81 @@ python3 - <<'PY'
 import platform
 print("machine:", platform.machine())
 PY
+```
 
-on raspberry:
+Observed stack:
+
+```text
+Jetson L4T R36.4.7
+CUDA 12.6
+aarch64
+NVIDIA-SMI works on host
+```
+
+## 10. Verify Slurm GPU resource
+
+```bash
+# on raspberry
 sinfo -o "%N %G %t"
 
 scontrol show node jetson | grep -E "Gres|CfgTRES|AllocTRES"
+```
 
+Expected:
+
+```text
+jetson gpu:1 idle
+Gres=gpu:1
+```
+
+## 11. GPU smoke job
+
+A simple Slurm GPU smoke job confirmed that Slurm schedules GPU jobs onto Jetson and that GPU device files are visible.
+
+```bash
+# on raspberry
 sudo vi /home/roman/nfs/lora/jobs/gpu-smoke.slurm
 
 sbatch /home/roman/nfs/lora/jobs/gpu-smoke.slurm
-squeue
-tail -f /home/roman/nfs/lora/logs/gpu-smoke-*.out
 
-on laptop:
+squeue
+
+tail -f /home/roman/nfs/lora/logs/gpu-smoke-*.out
+```
+
+Observed device files:
+
+```text
+/dev/nvidia0
+/dev/nvidiactl
+/dev/nvidia-modeset
+/dev/nvhost-gpu
+/dev/nvhost-ctrl-gpu
+/dev/nvhost-as-gpu
+/dev/nvhost-ctxsw-gpu
+```
+
+## 12. Create CUDA LoRA image
+
+The first NVIDIA NGC tag tried did not exist:
+
+```text
+nvcr.io/nvidia/l4t-pytorch:r36.4.0-pth2.5-py3
+```
+
+The working base image used for the experiment was:
+
+```text
+dustynv/l4t-pytorch:r36.4.0
+```
+
+```bash
+# on laptop
+cd ~/workdir/ai_platform
+
 mkdir -p infra/images/lora_training_cuda
 
-cat > infra/images/lora_training_cuda/dockerfile <<'EOF'
+cat > infra/images/lora_training_cuda/dockerfile <<'DOCKER'
 FROM dustynv/l4t-pytorch:r36.4.0
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -192,9 +374,14 @@ RUN python3 -m pip install \
     scipy
 
 CMD ["python3", "-c", "import torch; print(torch.__version__); print(torch.cuda.is_available())"]
-EOF
+DOCKER
+```
 
-cat > scripts/build_and_push_lora_training_cuda_image.sh <<'EOF'
+```bash
+# on laptop
+cd ~/workdir/ai_platform
+
+cat > scripts/build_and_push_lora_training_cuda_image.sh <<'EOF_SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -206,20 +393,42 @@ docker buildx build \
   -f infra/images/lora_training_cuda/dockerfile \
   -t "$IMAGE" \
   --push .
-EOF
+EOF_SCRIPT
 
 chmod +x scripts/build_and_push_lora_training_cuda_image.sh
 
 ./scripts/build_and_push_lora_training_cuda_image.sh
+```
 
-on jetson:
+The CUDA image is much larger than the CPU image.
+
+Observed rough size:
+
+```text
+CPU image:  about 1.6 GB
+CUDA image: about 13 GB
+```
+
+This is expected because the CUDA image includes Jetson CUDA/PyTorch runtime libraries.
+
+## 13. Pull CUDA image into Apptainer
+
+```bash
+# on jetson
 apptainer pull \
   --no-https \
   /home/roman/nfs/lora/images/lora-trainer-cuda.sif \
   docker://192.168.178.103:5000/lora-trainer-cuda:latest
 
 ls -lh /home/roman/nfs/lora/images/lora-trainer-cuda.sif
+```
 
+## 14. Manual CUDA visibility test with Apptainer
+
+This command works from a normal Jetson shell:
+
+```bash
+# on jetson
 apptainer exec \
   --bind /home/roman/nfs:/home/roman/nfs \
   --bind /dev/nvidia0:/dev/nvidia0 \
@@ -234,10 +443,44 @@ apptainer exec \
   --env LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu/nvidia:/usr/local/cuda/lib64 \
   /home/roman/nfs/lora/images/lora-trainer-cuda.sif \
   python3 -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.device_count())"
+```
 
+Observed:
 
-on laptop:
-cat > infra/slurm/jobs/lora-train-gpu.slurm <<'EOF'
+```text
+2.4.0
+12.6
+True
+1
+```
+
+A Docker runtime test also worked:
+
+```bash
+# on jetson
+docker run --rm --runtime nvidia \
+  192.168.178.103:5000/lora-trainer-cuda:latest \
+  python3 -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.device_count())"
+```
+
+Observed:
+
+```text
+2.4.0
+12.6
+True
+1
+```
+
+## 15. Slurm GPU Apptainer attempt
+
+A GPU Slurm job was created to run the CUDA SIF on Jetson:
+
+```bash
+# on laptop
+cd ~/workdir/ai_platform
+
+cat > infra/slurm/jobs/lora-train-gpu.slurm <<'EOF_SLURM'
 #!/usr/bin/env bash
 #SBATCH --job-name=lora-train-gpu
 #SBATCH --output=/home/roman/nfs/lora/logs/lora-train-gpu-%j.out
@@ -321,18 +564,97 @@ apptainer exec \
   python3 "${TRAIN_SCRIPT}"
 
 echo "GPU adapter written to ${OUTPUT_DIR}"
-EOF
+EOF_SLURM
+```
 
-on raspberry:
+```bash
+# on raspberry
 sudo vi ~/nfs/lora/jobs/lora-train-gpu.slurm
 
 sbatch /home/roman/nfs/lora/jobs/lora-train-gpu.slurm
+
 squeue
+
 tail -f /home/roman/nfs/lora/logs/lora-train-gpu-*.out
+tail -f /home/roman/nfs/lora/logs/lora-train-gpu-*.err
+```
 
+Observed issue:
 
-on laptop:
-cat > lora/training/train_qwen_lora_gpu.py <<'EOF'
+```text
+Inside Slurm-launched Apptainer:
+  torch: 2.4.0
+  CUDA build: 12.6
+  cuda available: False
+  device count: 0
+```
+
+An interactive `srun --pty bash` on Jetson also failed with:
+
+```text
+CUDA error 801: operation not supported
+Can't initialize NVML
+```
+
+This means the issue is not the image alone. It is related to the Slurm-launched process/session on Jetson.
+
+## 16. SSH workaround test
+
+Running the same Apptainer command through SSH from Raspberry to Jetson worked:
+
+```bash
+# on raspberry
+ssh \
+  -i /home/roman/.ssh/raspberry_to_jetson \
+  -o StrictHostKeyChecking=accept-new \
+  roman@jetson \
+  'bash -lc '"'"'
+    unset CUDA_VISIBLE_DEVICES
+    unset NVIDIA_VISIBLE_DEVICES
+
+    apptainer exec \
+      --bind /home/roman/nfs:/home/roman/nfs \
+      --bind /dev/nvidia0:/dev/nvidia0 \
+      --bind /dev/nvidiactl:/dev/nvidiactl \
+      --bind /dev/nvidia-modeset:/dev/nvidia-modeset \
+      --bind /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu \
+      --bind /dev/nvhost-as-gpu:/dev/nvhost-as-gpu \
+      --bind /dev/nvhost-gpu:/dev/nvhost-gpu \
+      --bind /dev/nvhost-ctxsw-gpu:/dev/nvhost-ctxsw-gpu \
+      --bind /usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu:ro \
+      --bind /usr/local/cuda:/usr/local/cuda:ro \
+      --env LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu/nvidia:/usr/local/cuda/lib64 \
+      /home/roman/nfs/lora/images/lora-trainer-cuda.sif \
+      python3 -c "import torch; print(torch.__version__); print(torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.device_count())"
+  '"'"''
+```
+
+Observed:
+
+```text
+2.4.0
+12.6
+True
+1
+```
+
+This confirms:
+
+```text
+Raspberry -> SSH -> Jetson -> Apptainer CUDA: works
+Jetson login shell -> Apptainer CUDA: works
+Jetson Slurm step -> Apptainer CUDA: fails
+```
+
+## 17. GPU training script experiment
+
+A GPU-specific training script was prepared:
+
+```bash
+# on laptop
+cd ~/workdir/ai_platform
+
+cat > lora/training/train_qwen_lora_gpu.py <<'PY'
 import json
 import os
 from pathlib import Path
@@ -475,10 +797,13 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
+PY
+```
 
+Manual GPU training command:
 
-on jetson:
+```bash
+# on jetson
 export BASE_MODEL="/home/roman/nfs/models/huggingface/Qwen2.5-0.5B-Instruct"
 export DATASET_PATH="/home/roman/nfs/lora/datasets/lab_style.jsonl"
 export OUTPUT_DIR="/home/roman/nfs/lora/adapters/lab_style_qwen2_5_0_5b_gpu_manual"
@@ -515,3 +840,67 @@ apptainer exec \
   --env LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu:/usr/lib/aarch64-linux-gnu/nvidia:/usr/local/cuda/lib64 \
   /home/roman/nfs/lora/images/lora-trainer-cuda.sif \
   python3 /home/roman/workdir/ai_platform/lora/training/train_qwen_lora_gpu.py
+```
+
+This currently fails because the CUDA image installed latest `transformers`:
+
+```text
+transformers 5.8.0
+torch 2.4.0
+```
+
+Error:
+
+```text
+ValueError: infer_schema(func): Parameter input has unsupported type torch.Tensor
+```
+
+The next fix is to rebuild the CUDA image with pinned package versions compatible with Jetson PyTorch 2.4.0.
+
+Planned package pinning:
+
+```text
+transformers==4.44.2
+peft==0.12.0
+datasets==2.21.0
+accelerate==0.33.0
+```
+
+## Current conclusion
+
+Working:
+
+```text
+CPU LoRA training:
+  Slurm -> Apptainer -> train_qwen_lora.py -> PEFT adapter
+
+LoRA conversion:
+  PEFT adapter -> llama.cpp convert_lora_to_gguf.py -> GGUF LoRA
+
+GPU inference:
+  K3s -> llama.cpp -> NVIDIA runtime -> Jetson GPU
+
+Manual CUDA visibility:
+  Jetson shell -> Apptainer CUDA image -> torch cuda True
+```
+
+Not completed yet:
+
+```text
+GPU LoRA training:
+  Needs CUDA image package pinning
+
+GPU LoRA through Slurm:
+  Slurm-launched Jetson session causes CUDA error 801 / cuda False
+```
+
+Next session:
+
+```text
+1. Rebuild lora-trainer-cuda image with pinned Python packages.
+2. Pull new lora-trainer-cuda.sif on Jetson.
+3. Retry manual GPU LoRA training through Apptainer.
+4. Convert GPU-trained adapter to GGUF.
+5. Continue investigating direct Slurm GPU Apptainer execution.
+6. Add K3s llama-cpp-lora serving manifest.
+```
