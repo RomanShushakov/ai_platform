@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-cpp-lora
+  namespace: ai-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llama-cpp-lora
+  template:
+    metadata:
+      labels:
+        app: llama-cpp-lora
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: jetson
+      runtimeClassName: nvidia
+      containers:
+        - name: llama-cpp-lora
+          image: 192.168.178.103:5000/llama-cpp-server:latest
+          imagePullPolicy: Always
+          args:
+            - "-m"
+            - "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+            - "--lora"
+            - "/adapters/lab_style_qwen2_5_0_5b_gpu_slurm_97.gguf"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8003"
+            - "-ngl"
+            - "99"
+            - "-c"
+            - "1024"
+            - "--parallel"
+            - "1"
+          ports:
+            - containerPort: 8003
+          volumeMounts:
+            - name: gguf-models
+              mountPath: /models
+            - name: lora-adapters
+              mountPath: /adapters
+      volumes:
+        - name: gguf-models
+          hostPath:
+            path: /home/roman/nfs/models/gguf
+            type: Directory
+        - name: lora-adapters
+          hostPath:
+            path: /home/roman/nfs/lora/adapters
+            type: Directory
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-cpp-lora
+  namespace: ai-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: llama-cpp-lora
+  ports:
+    - port: 8003
+      targetPort: 8003

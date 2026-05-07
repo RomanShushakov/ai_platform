@@ -17,12 +17,12 @@ WORKDIR /workspace/ai_platform
 RUN python3 -m pip install --upgrade pip setuptools wheel
 
 RUN python3 -m pip install \
-    transformers \
-    peft \
-    datasets \
-    accelerate \
+    "transformers==4.44.2" \
+    "peft==0.12.0" \
+    "datasets==2.21.0" \
+    "accelerate==0.33.0" \
     safetensors \
     sentencepiece \
     scipy
 
-CMD ["python3", "-c", "import torch; print(torch.__version__); print(torch.cuda.is_available())"]
+CMD ["python3", "-c", "import torch, transformers; print(torch.__version__); print(transformers.__version__); print(torch.cuda.is_available())"]

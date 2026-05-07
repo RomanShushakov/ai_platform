@@ -84,7 +84,7 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL,
         trust_remote_code=True,
-        torch_dtype=torch.float16,
+        torch_dtype=torch.bfloat16,
         device_map={"": 0},
     )
 
@@ -121,7 +121,8 @@ def main():
         save_steps=1,
         save_total_limit=1,
         report_to=[],
-        fp16=True,
+        fp16=False,
+        dataloader_pin_memory=False,
     )
 
     trainer = Trainer(
