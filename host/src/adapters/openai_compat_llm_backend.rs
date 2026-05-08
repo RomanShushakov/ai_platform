@@ -24,4 +24,8 @@ impl LlmBackend for OpenAiCompatLlmBackend {
     async fn chat(&self, request: ChatRequest) -> Result<LlmOutput> {
         self.client.chat(request).await
     }
+
+    async fn chat_direct(&self, message: String) -> Result<String> {
+        self.client.chat_direct(message).await
+    }
 }

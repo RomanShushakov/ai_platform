@@ -15,6 +15,31 @@ use crate::domain::{
     tool_provider::ToolProvider,
 };
 
+pub async fn run_direct_chat(
+    request_id: Uuid,
+    user_message: String,
+    llm_backend: &dyn LlmBackend,
+) -> Result<UiChatResponse> {
+    let answer = llm_backend
+        .chat_direct(user_message)
+        .await
+        .with_context(|| "direct llm call failed")?;
+
+    Ok(UiChatResponse {
+        answer,
+        steps: vec![
+            "Response mode: direct".to_string(),
+            "Skipped tools".to_string(),
+            "Skipped retrieval".to_string(),
+            "Generated direct answer".to_string(),
+        ],
+        request_id,
+        sources: Vec::new(),
+        retrieval_confidence: None,
+        safety_notes: Vec::new(),
+    })
+}
+
 pub async fn run_chat_loop(
     request_id: Uuid,
     user_message: String,

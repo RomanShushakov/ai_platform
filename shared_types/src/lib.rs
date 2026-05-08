@@ -5,6 +5,8 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiChatRequest {
     pub message: String,
+    pub llm_profile: Option<String>,
+    pub response_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

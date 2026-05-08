@@ -847,3 +847,34 @@ kubectl run curl-lora-test \
       ],
       "temperature": 0.2
     }'
+
+
+on laptop:
+cargo check
+
+./scripts/build_push_ai_platform_host_arm64.sh
+
+./scripts/sync_k3s_manifests.sh
+
+on raspberry:
+kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ai-platform-host.yml
+kubectl rollout restart deployment/ai-platform-host -n ai-platform
+kubectl rollout status deployment/ai-platform-host -n ai-platform
+kubectl logs -n ai-platform deployment/ai-platform-host
+
+on laptop:
+curl -X POST http://100.109.72.92:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What is Slurm?",
+    "llm_profile": "lora",
+    "response_mode": "direct"
+  }'
+
+curl -X POST http://100.109.72.92:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"How do I request vacation?"}'
+
+curl -X POST http://100.109.72.92:30080/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the weather in Berlin?"}'

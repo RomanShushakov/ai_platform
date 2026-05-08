@@ -19,6 +19,9 @@ pub struct Config {
     pub retrieval_min_score: f32,
     pub retrieval_relative_ratio: f32,
     pub retrieval_use_threshold: f32,
+    pub llm_lora_backend: Option<String>,
+    pub llm_lora_base_url: Option<String>,
+    pub llm_lora_model: Option<String>,
 }
 
 impl Config {
@@ -89,6 +92,12 @@ impl Config {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(0.12),
+
+            llm_lora_backend: std::env::var("LLM_LORA_BACKEND").ok(),
+
+            llm_lora_base_url: std::env::var("LLM_LORA_BASE_URL").ok(),
+
+            llm_lora_model: std::env::var("LLM_LORA_MODEL").ok(),
         }
     }
 }

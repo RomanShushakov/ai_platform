@@ -49,6 +49,12 @@ spec:
               value: "embeddings_local"
             - name: RAG_ARTIFACTS_PATH
               value: "/mnt/nfs/rag/artifacts"
+            - name: LLM_LORA_BACKEND
+              value: "openai_compat"
+            - name: LLM_LORA_BASE_URL
+              value: "http://llama-cpp-lora:8003"
+            - name: LLM_LORA_MODEL
+              value: "qwen-lora-gpu"
 
           volumeMounts:
             - name: nfs-data

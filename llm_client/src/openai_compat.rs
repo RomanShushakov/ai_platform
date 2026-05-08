@@ -102,6 +102,48 @@ impl OpenAiCompatClient {
             model: model.into(),
         }
     }
+
+    pub async fn chat_direct(&self, message: String) -> Result<String> {
+        let url = format!(
+            "{}/v1/chat/completions",
+            self.base_url.trim_end_matches('/')
+        );
+
+        let body = serde_json::json!({
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": message
+                }
+            ],
+            "temperature": 0.2,
+            "max_tokens": 128
+        });
+
+        let resp = self
+            .http_client
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
+            .context("failed to call OpenAI-compatible direct chat")?;
+
+        let status = resp.status();
+
+        if !status.is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("OpenAI-compatible direct chat error: {} {}", status, text);
+        }
+
+        let value: serde_json::Value = resp.json().await?;
+
+        let content = value["choices"][0]["message"]["content"]
+            .as_str()
+            .context("missing direct chat message content")?;
+
+        Ok(content.to_string())
+    }
 }
 
 #[async_trait]

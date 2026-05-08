@@ -106,11 +106,37 @@ async fn main() -> anyhow::Result<()> {
         other => anyhow::bail!("unsupported RETRIEVAL_BACKEND value: {}", other),
     };
 
+    let llm_lora_backend: Option<Arc<dyn LlmBackend>> =
+        if let (Some(llm_lora_backend), Some(llm_lora_base_url), Some(llm_lora_model)) = (
+            &config.llm_lora_backend,
+            &config.llm_lora_base_url,
+            &config.llm_lora_model,
+        ) {
+            match llm_lora_backend.as_str() {
+                "openai_compat" => {
+                    info!(
+                        base_url = %config.llm_base_url,
+                        model = %config.llm_model,
+                        "using OpenAI-compatible LLM backend"
+                    );
+                    Some(Arc::new(OpenAiCompatLlmBackend::new(
+                        llm_lora_base_url,
+                        llm_lora_model,
+                    )))
+                }
+                other => anyhow::bail!("unsupported LLM_LORA_BACKEND value: {}", other),
+            }
+        } else {
+            info!("LoRA LLM backend is not configured");
+            None
+        };
+
     let state = AppState {
         config: config.clone(),
         tool_provider,
         llm_backend,
         retriever,
+        llm_lora_backend,
     };
 
     let app = Router::new()
