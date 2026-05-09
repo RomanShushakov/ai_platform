@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # 🧠 RAG Rebuild Pipeline with Slurm + Apptainer
 
 This step turns RAG indexing from a manual local process into a **batch pipeline** executed through Slurm.
@@ -241,15 +251,7 @@ kubectl logs -n ai-platform deployment/ai-platform-host
 From laptop:
 
 ```bash
-curl -X POST http://100.90.183.16:30080/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message":"How do I request vacation?"}'
-```
-
-Or via MagicDNS:
-
-```bash
-curl -X POST http://jetson.tail0140c.ts.net:30080/chat \
+curl -X POST http://100.109.72.92:30080/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"How do I request vacation?"}'
 ```

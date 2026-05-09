@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # 🧬 LoRA Training with Slurm, Apptainer, and K3s Serving
 
 This guide promotes the LoRA proof from manual/local training into a cluster-style workflow.
@@ -675,7 +685,7 @@ cd ~/workdir/llama.cpp
 ## ▶️ On Laptop
 
 ```bash
-curl http://jetson.tail0140c.ts.net:8004/v1/chat/completions \
+curl http://100.109.72.92:8004/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen-lora-gpu",

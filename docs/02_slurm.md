@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # 🧮 Slurm Cluster Setup (Raspberry + Jetson)
 
 This guide sets up a **distributed Slurm cluster** using Ansible.
@@ -292,7 +302,7 @@ cat /home/roman/nfs/nfs-test-from-raspberry.txt
 ## 🧪 Run Jobs via NFS
 
 ```bash id="nfs-jobs"
-cd ~/nfs/slurm/job-examples
+cd /home/roman/nfs/slurm/job-examples
 /opt/slurm/bin/sbatch hostname.sbatch
 sleep 2
 ls -la
@@ -319,7 +329,7 @@ ansible-playbook slurm/playbooks/slurm_job_examples_nfs.yml -K
 Run:
 
 ```bash id="slurm-nfs-job"
-cd ~/nfs/slurm/job-examples
+cd /home/roman/nfs/slurm/job-examples
 ls
 /opt/slurm/bin/sbatch hostname.sbatch
 sleep 2

@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # 🧪 Local Development (Rust + Tools + Ollama + RAG)
 
 This guide walks through running the AI platform **locally**, without Kubernetes or Slurm.

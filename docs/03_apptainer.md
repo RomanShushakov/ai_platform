@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # 📦 Apptainer Setup (HPC Containers)
 
 This step installs **Apptainer (formerly Singularity)** on your nodes.

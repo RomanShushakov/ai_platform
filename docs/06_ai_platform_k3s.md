@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # 🤖 AI Platform Deployment on K3s (Host + Ollama)
 
 This step deploys the **online serving layer** of the platform into K3s.
@@ -102,7 +112,7 @@ curl http://<node-ip>:30080/health
 Example:
 
 ```bash
-curl http://100.90.183.16:30080/health
+curl http://100.109.72.92:30080/health
 ```
 
 ---
@@ -178,7 +188,7 @@ curl -X POST http://<node-ip>:30080/chat \
 Create directory on Raspberry:
 
 ```bash
-mkdir -p ~/nfs/rag/artifacts
+mkdir -p /home/roman/nfs/rag/artifacts
 ```
 
 Sync from laptop:
@@ -190,7 +200,7 @@ rsync -avz artifacts/rag/ roman@raspberry:/home/roman/nfs/rag/artifacts/
 Verify:
 
 ```bash
-ls -la ~/nfs/rag/artifacts
+ls -la /home/roman/nfs/rag/artifacts
 ```
 
 ---

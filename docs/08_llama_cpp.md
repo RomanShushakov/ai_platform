@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # ⚡ llama.cpp Runtime on Jetson
 
 This step builds and runs **llama.cpp** as the main GPU-backed LLM runtime on Jetson.
@@ -46,7 +56,7 @@ OpenAI-compatible APIs
 
 # 1️⃣ Install Build Dependencies
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 sudo apt update
@@ -70,7 +80,7 @@ sudo apt install -y cuda-nvcc-12-6
 
 # 2️⃣ Build llama.cpp with CUDA
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 cd ~/workdir
@@ -111,7 +121,7 @@ Device 0: Orin
 
 # 3️⃣ Sync Runtime Image Files
 
-### on laptop:
+## ▶️ On Laptop
 
 ```bash
 ./scripts/sync_llama_cpp_runtime_image_to_jetson.sh
@@ -133,7 +143,7 @@ to:
 
 # 4️⃣ Copy Runtime Binary and Libraries
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 cp ~/workdir/llama.cpp/build/bin/llama-server \
@@ -163,7 +173,7 @@ cp ~/workdir/llama.cpp/build/bin/libmtmd*.so* \
 
 # 5️⃣ Build Runtime Docker Image
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 cd ~/workdir/ai_platform/infra/images/llama_cpp_runtime
@@ -201,7 +211,7 @@ docker push 192.168.178.103:5000/llama-cpp-server:latest
 
 # 6️⃣ Download GGUF Models
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 mkdir -p /home/roman/nfs/models/gguf
@@ -226,7 +236,7 @@ wget -O all-minilm-l6-v2-q8_0.gguf \
 
 # 7️⃣ Run llama.cpp (Chat)
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 docker run --rm -it \
@@ -246,7 +256,7 @@ docker run --rm -it \
 
 # 8️⃣ Run llama.cpp (Embeddings)
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 docker run --rm -it \
@@ -268,7 +278,7 @@ docker run --rm -it \
 
 # 9️⃣ Test APIs
 
-### on raspberry:
+## ▶️ On Raspberry
 
 Chat:
 
@@ -302,7 +312,7 @@ curl -X POST http://jetson:8001/v1/embeddings \
 
 # 🔟 Enable Jetson Performance Mode
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 sudo jetson_clocks

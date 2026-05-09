@@ -1,3 +1,13 @@
+<!--
+AI Platform Lab Documentation
+Standardized Edition
+Environment:
+- Laptop: development machine
+- Raspberry Pi: Slurm controller + K3s control-plane
+- Jetson Orin Nano: GPU worker + inference + training node
+- External Tailscale endpoint: 100.109.72.92
+-->
+
 # 🧠 llama.cpp Integration into AI Platform
 
 This step integrates llama.cpp into the platform and replaces Ollama.
@@ -32,13 +42,13 @@ Rust Host
 
 # 1️⃣ Deploy Chat Runtime
 
-### on laptop:
+## ▶️ On Laptop
 
 ```bash
 ./scripts/sync_k3s_manifests.sh
 ```
 
-### on raspberry:
+## ▶️ On Raspberry
 
 ```bash
 kubectl apply -f ~/workdir/k3s/manifests/ai_platform/llama-cpp.yml
@@ -62,7 +72,7 @@ kubectl run llama-test \
 
 # 2️⃣ Deploy Warmup Job
 
-### on raspberry:
+## ▶️ On Raspberry
 
 ```bash
 kubectl apply -f ~/workdir/k3s/manifests/ai_platform/llama-cpp-warmup.yml
@@ -74,13 +84,13 @@ kubectl logs -n ai-platform job/llama-cpp-warmup
 
 # 3️⃣ Deploy Embeddings Runtime
 
-### on laptop:
+## ▶️ On Laptop
 
 ```bash
 ./scripts/sync_k3s_manifests.sh
 ```
 
-### on raspberry:
+## ▶️ On Raspberry
 
 ```bash
 kubectl apply -f ~/workdir/k3s/manifests/ai_platform/llama-cpp-embed.yml
@@ -123,13 +133,13 @@ data[0].embedding
 
 # 5️⃣ Rebuild RAG Artifacts
 
-### on laptop:
+## ▶️ On Laptop
 
 ```bash
 ./scripts/build_push_rag_indexer_arm64.sh
 ```
 
-### on jetson:
+## ▶️ On Jetson
 
 ```bash
 rm -f /home/roman/nfs/rag/images/rag-indexer.sif
@@ -140,7 +150,7 @@ apptainer pull \
   docker://192.168.178.103:5000/rag-indexer:latest
 ```
 
-### on raspberry:
+## ▶️ On Raspberry
 
 ```bash
 sbatch /home/roman/nfs/rag/jobs/rag-index.slurm
@@ -154,14 +164,14 @@ tail -n 100 /home/roman/nfs/rag/jobs/logs/*.out
 
 # 6️⃣ Restart Host
 
-### on laptop:
+## ▶️ On Laptop
 
 ```bash
 ./scripts/build_push_ai_platform_host_arm64.sh
 ./scripts/sync_k3s_manifests.sh
 ```
 
-### on raspberry:
+## ▶️ On Raspberry
 
 ```bash
 kubectl apply -f ~/workdir/k3s/manifests/ai_platform/ai-platform-host.yml
@@ -175,10 +185,10 @@ kubectl logs -n ai-platform deployment/ai-platform-host
 
 # 7️⃣ Verify End-to-End
 
-### on laptop:
+## ▶️ On Laptop
 
 ```bash
-curl -X POST http://jetson.tail0140c.ts.net:30080/chat \
+curl -X POST http://100.109.72.92:30080/chat \
   -H "Content-Type: application/json" \
   -d '{"message":"How do I request vacation?"}'
 ```
@@ -193,7 +203,7 @@ Expected:
 
 # 8️⃣ Remove Ollama
 
-### on raspberry:
+## ▶️ On Raspberry
 
 ```bash
 kubectl delete -f ~/workdir/k3s/manifests/ai_platform/ollama.yml

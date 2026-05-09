@@ -2,141 +2,205 @@
 
 This directory tracks the infrastructure side of the AI platform project.
 
-The goal is not just to run a chatbot, but to understand how:
+The goal is to understand how:
 
-* online serving
-* batch compute
+* distributed compute
+* GPU inference
+* batch scheduling
 * shared storage
-* container orchestration
-* GPU inference backends
+* orchestration
+* retrieval pipelines
+* LoRA specialization
 
-fit together in a real, minimal lab environment.
+fit together inside a practical heterogeneous ARM lab.
+
+The project intentionally focuses on:
+- observability
+- incremental architecture
+- explicit infrastructure layers
+- OpenAI-compatible interfaces
+- reproducible local workflows
 
 ---
 
-# 🎯 Architecture Overview
+# 🎯 Current Platform State
+
+The platform currently demonstrates:
+
+* distributed ARM infrastructure
+* GPU-backed llama.cpp inference
+* Slurm batch scheduling
+* Apptainer execution
+* K3s orchestration
+* RAG indexing pipelines
+* embedding generation
+* LoRA fine-tuning
+* LoRA GGUF conversion
+* multi-runtime inference routing
+* Rust orchestration layer
+
+using:
+
+* Laptop
+* Raspberry Pi 4
+* Jetson Orin Nano
+
+---
+
+# 🌐 External Access
+
+Main external API endpoint:
 
 ```text
-           ┌───────────────┐
-           │   Laptop      │
-           │ curl / dev    │
-           └──────┬────────┘
-                  │
-                  ▼
-        ┌─────────────────────┐
-        │      K3s Cluster    │
-        │ (Raspberry + Jetson)│
-        └────────┬────────────┘
-                 │
-     ┌───────────┼──────────────┐
-     ▼                           ▼
-┌──────────────┐         ┌──────────────┐
-│ Rust Host    │         │ llama.cpp    │
-│ (API + MCP)  │         │ (LLM Server) │
-└──────┬───────┘         └──────┬───────┘
-       │                        │
-       ▼                        ▼
-        ┌─────────────────────┐
-        │     NFS Storage     │
-        │ (Jetson /home/nfs)  │
-        └────────┬────────────┘
-                 │
-                 ▼
-           ┌───────────────┐
-           │    Slurm      │
-           │ Batch Jobs    │
-           └───────────────┘
+http://100.109.72.92:30080
+```
+
+Internal K3s services:
+
+```text
+http://llama-cpp:8000
+http://llama-cpp-lora:8003
+http://llama-cpp-embed:8001
+```
+
+Docker registry:
+
+```text
+192.168.178.103:5000
+```
+
+Shared NFS root:
+
+```text
+/ home / roman / nfs
 ```
 
 ---
 
-# 🧩 Architecture Layers
+# 🧭 High-Level Architecture
 
-## 1. Serving Plane (Rust AI Platform)
+```text
+                ┌────────────────────┐
+                │ ai-platform-host   │
+                │ Rust orchestration │
+                └─────────┬──────────┘
+                          │
+      ┌───────────────────┼────────────────────┐
+      ▼                   ▼                    ▼
 
-Handles:
+┌──────────────┐  ┌────────────────┐  ┌────────────────┐
+│ llama-cpp    │  │ llama-cpp-lora │  │ llama-cpp-embed│
+│ port 8000    │  │ port 8003      │  │ port 8001      │
+│ base model   │  │ LoRA runtime   │  │ embeddings     │
+└──────┬───────┘  └────────┬───────┘  └────────┬───────┘
+       │                   │                   │
+       └───────────────────┼───────────────────┘
+                           ▼
 
-* chat API
-* tool orchestration (MCP / HTTP)
-* retrieval (RAG)
-* LLM interaction (OpenAI-compatible)
+                 ┌──────────────────┐
+                 │ NFS Shared Store │
+                 │ /home/roman/nfs  │
+                 └────────┬─────────┘
+                          │
+                          ▼
+
+                 ┌──────────────────┐
+                 │ Slurm + GPU Jobs │
+                 │ Jetson Worker    │
+                 └──────────────────┘
+```
+
+---
+
+# 🧩 Infrastructure Layers
+
+# 1️⃣ Serving Plane
+
+The Rust orchestration layer handles:
+
+* HTTP API
+* request routing
+* retrieval orchestration
+* MCP/tool execution
+* backend selection
+* direct vs agent response modes
 
 Runs inside K3s.
 
-Supports multiple backends:
+---
 
-* llama.cpp (current primary)
-* Ollama (fallback / legacy)
+# 2️⃣ Inference Plane
+
+llama.cpp runtimes provide:
+
+* OpenAI-compatible APIs
+* GGUF inference
+* GPU acceleration
+* embeddings
+* LoRA adapter loading
+
+Current runtimes:
+
+| Runtime | Purpose |
+|---|---|
+| llama-cpp | base inference |
+| llama-cpp-lora | LoRA behavior specialization |
+| llama-cpp-embed | embeddings |
 
 ---
 
-## 2. LLM Serving Plane (llama.cpp)
+# 3️⃣ Training Plane
 
-Handles:
+Slurm + Apptainer handle:
 
-* model inference (GGUF)
-* OpenAI-compatible API (`/v1/chat/completions`)
-* embeddings (planned)
-* LoRA support (future)
+* LoRA fine-tuning
+* dataset processing
+* RAG indexing
+* artifact generation
+* future automation pipelines
 
-Key characteristics:
+Training can run:
 
-* runs directly on Jetson GPU (CUDA)
-* deployed as K3s workload
-* uses local GGUF models from NFS
-
----
-
-## 3. Batch Plane (Slurm)
-
-Handles:
-
-* RAG artifact generation
-* embedding jobs
-* preprocessing
-* future training / fine-tuning
-
-Runs on Jetson (GPU-capable node).
+* CPU-only
+* GPU-accelerated (`apptainer exec --nv`)
 
 ---
 
-## 4. Storage Plane (NFS)
+# 4️⃣ Storage Plane
 
-Shared directory:
+Shared NFS storage:
 
-```
+```text
 /home/roman/nfs
 ```
 
 Used for:
 
 * GGUF models
-* RAG artifacts
+* HuggingFace models
+* LoRA adapters
+* datasets
 * embeddings
-* job outputs
-* logs
-
-Mounted inside K3s pods:
-
-```
-/models
-/mnt/nfs
-```
+* RAG artifacts
+* Slurm logs
+* Apptainer images
 
 ---
 
-## 5. Orchestration Plane (K3s)
+# 5️⃣ Orchestration Plane
 
-Cluster:
+K3s cluster:
 
-* Raspberry → control-plane
-* Jetson → GPU worker
+| Node | Role |
+|---|---|
+| Raspberry Pi | control-plane |
+| Jetson Orin Nano | GPU worker |
 
-Runs:
+K3s runs:
 
 * Rust host
-* llama.cpp server
-* Ollama (optional / legacy)
+* llama.cpp runtimes
+* embedding services
 * warmup jobs
 * future services
 
@@ -144,244 +208,197 @@ Runs:
 
 # 📦 Storage Layout
 
-```
+```text
 /home/roman/nfs/
-├── slurm/
-│   └── job-examples/
+├── models/
+│   ├── gguf/
+│   └── huggingface/
 ├── rag/
 │   ├── knowledge_base/
-│   └── artifacts/
-│       ├── chunks.json
-│       ├── embeddings.json
-│       └── manifest.json
-├── models/
-│   └── gguf/
-│       └── *.gguf
+│   ├── artifacts/
+│   └── images/
+├── lora/
+│   ├── datasets/
+│   ├── adapters/
+│   ├── images/
+│   └── jobs/
 └── logs/
 ```
 
 ---
 
-# 🔥 End-to-End Data Flow
+# 🔀 Runtime Routing
 
-## Online Flow (Current)
+The Rust host supports multiple inference profiles.
 
-```text
-User Request
-   ↓
-K3s Service (NodePort)
-   ↓
-Rust Host Pod
-   ↓
-Retriever (NFS artifacts)
-   ↓
-llama.cpp (/v1/chat/completions)
-   ↓
-Final Response
+Current routing:
+
+| Profile | Backend |
+|---|---|
+| default | llama-cpp |
+| lora | llama-cpp-lora |
+
+Current response modes:
+
+| Mode | Behavior |
+|---|---|
+| agent | retrieval + tools |
+| direct | direct backend generation |
+
+Example:
+
+```json
+{
+  "message": "What is Slurm?",
+  "llm_profile": "lora",
+  "response_mode": "direct"
+}
 ```
 
 ---
 
-## Offline Flow
+# 🧠 LoRA Interpretation
+
+LoRA is currently used primarily for:
+
+* formatting specialization
+* answer style tuning
+* behavioral shaping
+* future JSON/tool discipline
+
+LoRA is NOT treated as:
+
+* authoritative factual memory
+* replacement for retrieval
+* replacement for tools
+
+Factual grounding should still come from:
+
+* RAG
+* tools
+* retrieval context
+
+---
+
+# 🔥 End-to-End Flows
+
+# Online Inference Flow
 
 ```text
-Trigger (manual / future API)
-   ↓
-Slurm Job
-   ↓
-RAG Indexer
-   ↓
-Artifacts written to NFS
-   ↓
-K3s App reads updated artifacts
+Client
+  ↓
+ai-platform-host
+  ↓
+retrieval / routing
+  ↓
+llama.cpp runtime
+  ↓
+response
 ```
 
 ---
 
-# ⚙️ LLM Backend Evolution
+# Offline Training Flow
 
-## Phase 1 (previous)
-
-* Ollama for:
-
-  * chat
-  * embeddings
-
-## Phase 2 (current)
-
-* llama.cpp replaces Ollama for:
-
-  * chat inference ✔
-* Ollama still optional
-
-## Phase 3 (planned)
-
-* llama.cpp for:
-
-  * embeddings
-  * LoRA adapters
-* remove Ollama completely
+```text
+Dataset
+  ↓
+Slurm job
+  ↓
+Apptainer container
+  ↓
+LoRA adapter
+  ↓
+GGUF conversion
+  ↓
+K3s deployment
+```
 
 ---
 
-# ✅ Current Working State
+# 🧪 Current Infrastructure Capabilities
 
-* Slurm cluster ✔
-* GPU scheduling ✔
-* NFS shared storage ✔
-* K3s cluster ✔
-* llama.cpp deployed ✔
-* OpenAI-compatible API ✔
-* Rust app connected to llama.cpp ✔
-* MCP tools loaded ✔
-* RAG working from NFS ✔
-* warmup job implemented ✔
+Implemented and working:
 
----
-
-# ⚠️ Known Limitations
-
-## 1. Tool usage
-
-* tools load correctly
-* LLM may skip tool calls
-
-Issues:
-
-* direct answering
-* incomplete reasoning
-* tool avoidance
-
-Planned:
-
-* tool forcing
-* retry loop
-* stricter routing rules
+* GPU inference ✔
+* GPU LoRA training ✔
+* Slurm scheduling ✔
+* Apptainer GPU execution ✔
+* llama.cpp serving ✔
+* embedding runtime ✔
+* RAG indexing ✔
+* OpenAI-compatible APIs ✔
+* Rust orchestration ✔
+* K3s deployment ✔
+* LoRA routing ✔
+* direct response mode ✔
 
 ---
 
-## 2. JSON output reliability
+# ⚠️ Operational Notes
 
-* model may ignore JSON instructions
+# GPU Resource Limits
 
-Planned:
+Jetson Orin Nano has limited VRAM/RAM.
 
-* stronger system prompt
-* response validation + retry
+Before GPU training:
 
----
+```bash
+kubectl scale deployment llama-cpp -n ai-platform --replicas=0
+kubectl scale deployment llama-cpp-lora -n ai-platform --replicas=0
+kubectl scale deployment llama-cpp-embed -n ai-platform --replicas=0
+```
 
-## 3. Retrieval grounding
+After training:
 
-* model may hallucinate beyond context
-
-Planned:
-
-* stricter prompt constraints
-* "answer ONLY from context" enforcement
-
----
-
-## 4. Cold start latency
-
-* first request is slow (model warmup)
-
-Mitigation:
-
-* warmup Kubernetes Job ✔
-* prompt caching ✔
+```bash
+kubectl scale deployment llama-cpp -n ai-platform --replicas=1
+kubectl scale deployment llama-cpp-lora -n ai-platform --replicas=1
+kubectl scale deployment llama-cpp-embed -n ai-platform --replicas=1
+```
 
 ---
 
-# 🧠 Retrieval Strategy
+# 🧭 Design Principles
 
-Current:
-
-* JSON artifacts
-* local embeddings
-* in-memory scoring
-
-Advantages:
-
-* simple
-* transparent
-* debuggable
-
-Future:
-
-* llama.cpp embeddings
-* optional vector DB (Qdrant)
-
----
-
-# 🖥 Hardware Topology
-
-## Laptop
-
-* development
-* Docker buildx
-* deployment scripts
-* curl client
-
-## Raspberry
-
-* K3s control-plane
-* Slurm controller
-* NFS client
-
-## Jetson
-
-* GPU inference (llama.cpp)
-* Slurm worker
-* NFS server
-* K3s worker
-
----
-
-# 🚀 Roadmap
-
-## Completed
-
-* Slurm + GPU
-* NFS setup
-* K3s cluster
-* llama.cpp runtime container
-* OpenAI-compatible API
-* RAG integration
-* warmup job
-
-## Next
-
-* llama.cpp embeddings
-* LoRA support
-* tool reliability improvements
-* automated Slurm pipelines
-* UI layer
-
----
-
-# 🧠 Design Principles
-
-* separate online / offline workloads
-* keep system observable
-* prefer simple formats first
-* avoid unnecessary abstractions
-* use OpenAI-compatible APIs as standard
+* separate online/offline workloads
+* prefer explicit infrastructure
+* avoid unnecessary abstraction
+* use standard APIs
+* keep systems observable
+* prefer reproducible workflows
 * build incrementally
+
+---
+
+# 🗺 Roadmap
+
+Possible future directions:
+
+* automated Slurm pipelines
+* structured tool-call tuning
+* vector database integration
+* metrics/monitoring
+* distributed training experiments
+* lightweight UI
+* multi-model routing
 
 ---
 
 # 📌 Summary
 
-You now have a fully working **mini AI infrastructure platform**:
+This repository now demonstrates a practical miniature AI infrastructure platform with:
 
-* distributed compute (Slurm)
-* shared storage (NFS)
-* container orchestration (K3s)
-* GPU inference (llama.cpp)
-* OpenAI-compatible serving
-* RAG pipeline (end-to-end)
+* heterogeneous ARM hardware
+* GPU inference
+* GPU fine-tuning
+* Slurm orchestration
+* K3s orchestration
+* shared storage
+* RAG
+* embeddings
+* Rust orchestration
+* LoRA specialization
+* OpenAI-compatible APIs
 
-Next milestone:
-
-👉 Fully local pipeline (llama.cpp for chat + embeddings + LoRA)
+built incrementally on real hardware infrastructure.
