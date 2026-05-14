@@ -1,0 +1,15 @@
+# on raspberry:
+cat > ~/recover-slurm-jetson.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+sudo systemctl restart slurmctld
+ssh jetson 'sudo systemctl restart slurmd'
+
+sudo /opt/slurm/bin/scontrol update NodeName=jetson State=RESUME
+
+/opt/slurm/bin/sinfo
+/opt/slurm/bin/scontrol show node jetson | grep -E "State|Reason|Gres|BootTime|SlurmdStartTime"
+EOF
+
+chmod +x ~/recover-slurm-jetson.sh
